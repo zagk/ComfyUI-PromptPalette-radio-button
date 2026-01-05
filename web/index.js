@@ -85,8 +85,9 @@ function addEditButton(node, textWidget, app) {
 
   // Add spacing below Edit button
   const spacer = node.addWidget("text", "", "");
-  spacer.hidden = true;
   spacer.computeSize = () => [0, 6];
+  spacer.draw = () => {};
+  spacer.serialize = false;
 }
 
 function setTextWidgetVisibility(textWidget, visible) {
