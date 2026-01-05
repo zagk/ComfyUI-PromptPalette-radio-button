@@ -93,9 +93,11 @@ function addEditButton(node, textWidget, app) {
 function setTextWidgetVisibility(textWidget, visible) {
   // Keep layout height while hiding only the DOM widget.
   textWidget.hidden = false;
+  textWidget.disabled = !visible;
+  textWidget.computedDisabled = !visible;
   const el = textWidget.element || textWidget.inputEl;
   if (!el) return;
-  el.style.visibility = visible ? "" : "hidden";
+  el.style.display = visible ? "" : "none";
   el.style.pointerEvents = visible ? "" : "none";
 }
 
