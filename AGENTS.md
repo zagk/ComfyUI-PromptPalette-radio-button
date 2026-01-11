@@ -106,11 +106,40 @@ Nodes 2.0の場合:
 - ComfyUI 拡張として登録し、PromptPalette ノードの生成/描画にフック
 - `beforeRegisterNodeDef` で PromptPalette ノードの挙動を差し替え
 
+## ComfyUIの実行方法
+
+ComfyUI portableのcustom_nodesフォルダ内にComfyUI-PromptPaletteフォルダを配置している。
+ワーキングディレクトリがComfyUI-PromptPaletteフォルダとすると、以下のコマンドでComfyUIを起動する。
+
+```
+..\..\..\python_embeded\python.exe -u -s ..\..\..\ComfyUI\main.py --windows-standalone-build --disable-auto-launch
+```
+
+## テスト方法
+
+1. ComfyUIを再起動
+2. MCP PlaywrightでComfyUIを開く
+3. 画面上部の+ボタンで新しいWorkflowを作成
+4. 画面中央付近をダブルクリックしてノードを検索
+5. "PromptPalette" と入力してEnter
+6. 画面中央にPromptPaletteノードが追加されたことを確認
+7. PromptPaletteノードのEditボタンを押す
+8. PromptPaletteノードのテキストエリアに以下の行を追加
+```
+hoge // ほげ
+fuga
+```
+9. PromptPaletteノードのSaveボタンを押す
+10. hogeの右横の+ボタンを2回押す
+11. hogeの右横の数値が1.2になったことを確認
+
+
 ## 編集ポリシー
 
 - 要求にない変更はせず、指定された箇所のみ最小限の変更に留める。
 - 要求に不明な点や曖昧な点があれば確認する。勝手な推測をしない。
-- コードを編集する際は、その変更意図を説明する。
+- コードを編集する際は、必ず編集する前にその意図を説明する。
+- コマンドを実行する際は、必ず実行する前にその意図を説明する。
 - チャットでの回答は日本語。
 
 ## その他の参考メモ

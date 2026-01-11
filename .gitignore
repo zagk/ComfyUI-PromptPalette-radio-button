@@ -29,6 +29,7 @@ env/
 # Editor
 .idea/
 .vscode/
+.codex/
 *.swp
 *.swo
 *~
