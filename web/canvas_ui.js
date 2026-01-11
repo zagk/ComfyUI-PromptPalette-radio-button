@@ -17,17 +17,20 @@ let CONFIG = null;
 let colorCache = null;
 
 export function setupCanvasUI(nodeType, config, app) {
+  // Hook once per node type to avoid double-wrapping prototype methods.
   if (nodeType.prototype.__promptPaletteCanvasSetup) {
     return;
   }
   nodeType.prototype.__promptPaletteCanvasSetup = true;
   CONFIG = config;
 
+  // Run the original handler to preserve other extensions.
   const origOnNodeCreated = nodeType.prototype.onNodeCreated;
   nodeType.prototype.onNodeCreated = function () {
     if (origOnNodeCreated) {
       origOnNodeCreated.apply(this, arguments);
     }
+    // Initialize Canvas UI only for new nodes in Nodes 1.0 mode.
     if (isVueNodesMode()) {
       return;
     }
@@ -49,6 +52,7 @@ export function setupCanvasUI(nodeType, config, app) {
     if (origOnDrawForeground) {
       origOnDrawForeground.call(this, ctx);
     }
+    // Render the custom list UI in display mode.
     if (isVueNodesMode()) {
       return;
     }
@@ -64,6 +68,7 @@ export function setupCanvasUI(nodeType, config, app) {
 // ========================================
 
 function addEditButton(node, textWidget, app) {
+  // Toggle between edit and display modes using the built-in widget button.
   const textButton = node.addWidget("button", "Edit", "edit_text", () => {
     node.isEditMode = !node.isEditMode;
     setWidgetVisibility(textWidget, node.isEditMode, { keepLayout: true });
@@ -78,6 +83,7 @@ function addEditButton(node, textWidget, app) {
 }
 
 function setupClickHandler(node, textWidget, app) {
+  // Route canvas clicks to the precomputed clickable areas.
   node.clickableAreas = [];
 
   node.findClickedArea = findClickedArea;
@@ -148,6 +154,7 @@ function adjustWeightInText(textWidget, lineIndex, delta, app) {
 // ========================================
 
 function drawCheckboxList(node, ctx, text, app) {
+  // Draw the list and adjust node height to fit content.
   if (node.flags && node.flags.collapsed) {
     return;
   }
@@ -262,6 +269,7 @@ function drawPhraseText(ctx, phraseText, y, isCommented, originalLine) {
 }
 
 function drawWeightControls(ctx, y, line, isCommented, node, lineIndex) {
+  // Draw +/- buttons and optional weight label.
   const nodeWidth = node.size[0];
   const textToCheck = getLineTextForWeight(line, isCommented);
 
@@ -356,6 +364,7 @@ function drawWeightButton(ctx, x, y, symbol, node, lineIndex, action) {
 // ========================================
 
 function getColors() {
+  // Cache theme-derived colors for performance.
   if (colorCache) {
     return colorCache;
   }

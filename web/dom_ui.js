@@ -19,17 +19,20 @@ const DOM_WIDGET_NAME = "promptpalette_ui";
 const STYLE_ID = "promptpalette-nodes2-style";
 
 export function setupDomUI(nodeType, config, app) {
+  // Hook once per node type to avoid double-wrapping prototype methods.
   if (nodeType.prototype.__promptPaletteDomSetup) {
     return;
   }
   nodeType.prototype.__promptPaletteDomSetup = true;
   CONFIG = config;
 
+  // Run the original handler to preserve other extensions.
   const origOnNodeCreated = nodeType.prototype.onNodeCreated;
   nodeType.prototype.onNodeCreated = function () {
     if (origOnNodeCreated) {
       origOnNodeCreated.apply(this, arguments);
     }
+    // Initialize DOM UI only for new nodes in Vue (Nodes 2.0) mode.
     if (!isVueNodesMode()) {
       return;
     }
@@ -41,7 +44,7 @@ export function setupDomUI(nodeType, config, app) {
     const textWidget = findTextWidget(this);
     if (!textWidget) return;
 
-    ensureStyles();
+    addStylesIfMissing();
     const domState = createDomState(this, textWidget, app);
     this.__promptPaletteDomState = domState;
 
@@ -54,6 +57,7 @@ export function setupDomUI(nodeType, config, app) {
 }
 
 export function refreshDomUI(node, app) {
+  // Sync DOM UI from existing node state when a graph is loaded.
   if (!node || !node.__promptPaletteDomState) return;
   if (!isVueNodesMode()) return;
   const textWidget = findTextWidget(node);
@@ -95,6 +99,7 @@ function updateEditButtonLabel(node, domState) {
 }
 
 function updateTextWidgetVisibility(node, textWidget, visible) {
+  // Mirror visibility/disabled state to the underlying Comfy widget.
   if (!textWidget) return;
   setWidgetVisibility(textWidget, visible);
   if (textWidget.options) {
@@ -158,6 +163,7 @@ function setupDomInteractions(node, textWidget, domState, app) {
 }
 
 function wrapCollapseHandler(node, domState, app) {
+  // Keep DOM widget visibility in sync with node collapse.
   const origCollapse = node.collapse;
   node.collapse = function () {
     const result = origCollapse
@@ -186,6 +192,7 @@ function updateDomVisibility(node, domState, app) {
 // ========================================
 
 function createDomState(node, textWidget, app) {
+  // Build DOM structure and attach it as a DOM widget.
   const container = document.createElement("div");
   container.className = "pp-root";
   container.style.width = "100%";
@@ -237,6 +244,7 @@ function createDomState(node, textWidget, app) {
 }
 
 function updateDomList(node, textWidget, domState, app) {
+  // Render rows from text and update layout height.
   const text = textWidget.value || "";
   const lines = text.split("\n");
   const fallbackHeight =
@@ -257,7 +265,13 @@ function updateDomList(node, textWidget, domState, app) {
   domState.empty.style.display = "none";
 
   lines.forEach((line, index) => {
-    if (isEmptyLine(line)) return;
+    if (isEmptyLine(line)) {
+      const emptyRow = document.createElement("div");
+      emptyRow.className = "pp-row pp-row--empty";
+      emptyRow.style.height = `${CONFIG.lineHeight}px`;
+      domState.list.append(emptyRow);
+      return;
+    }
 
     const isCommented = isLineCommented(line);
     const row = document.createElement("div");
@@ -345,6 +359,7 @@ function syncNodeSize(node) {
 }
 
 function updateDomLayoutHeight(node, domState, fallbackHeight) {
+  // Measure DOM and set node height via CSS variable for Nodes 2.0.
   const measuredHeight = getDomContentHeight(domState);
   const nextHeight = Math.ceil(measuredHeight || fallbackHeight);
   domState.layoutHeight = nextHeight;
@@ -376,7 +391,8 @@ function applyDomNodeHeight(node, height) {
   nodeEl.style.setProperty("--node-height", `${nextHeight}px`);
 }
 
-function ensureStyles() {
+function addStylesIfMissing() {
+  // Inject styles once per page.
   if (document.getElementById(STYLE_ID)) return;
   const style = document.createElement("style");
   style.id = STYLE_ID;
@@ -401,6 +417,9 @@ function ensureStyles() {
   display: flex;
   align-items: center;
   gap: ${CONFIG.spaceBetweenCheckboxAndText}px;
+}
+.pp-row--empty {
+  pointer-events: none;
 }
 .pp-row--inactive {
   opacity: 0.5;
