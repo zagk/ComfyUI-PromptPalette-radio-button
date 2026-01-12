@@ -6,16 +6,24 @@ import {
 } from "./ui_utils.js";
 import { Line } from "./line.js";
 
-let CONFIG = null;
+const CONFIG = {
+  minNodeHeight: 80,
+  topNodePadding: 40,
+  sideNodePadding: 14,
+  lineHeight: 24,
+  fontSize: 14,
+  checkboxSize: 16,
+  spaceBetweenCheckboxAndText: 6,
+  weightButtonSize: 16,
+};
 let colorCache = null;
 
-export function setupCanvasUI(nodeType, config, app) {
+export function setupCanvasUI(nodeType, app) {
   // Hook once per node type to avoid double-wrapping prototype methods.
   if (nodeType.prototype.__nodeTypeInitialized) {
     return;
   }
   nodeType.prototype.__nodeTypeInitialized = true;
-  CONFIG = config;
 
   // Run the original handler to preserve other extensions.
   const origOnNodeCreated = nodeType.prototype.onNodeCreated;
@@ -240,8 +248,8 @@ function drawDisplayText(ctx, line, y, isCommented) {
   const isBold = line.weight !== 1.0;
 
   ctx.font = isBold
-    ? `bold ${CONFIG.fontSize}px monospace`
-    : `${CONFIG.fontSize}px monospace`;
+    ? `bold ${CONFIG.fontSize}px sans-serif`
+    : `${CONFIG.fontSize}px sans-serif`;
 
   const checkboxCenter = y + CONFIG.checkboxSize / 2;
   const textBaseline = checkboxCenter + CONFIG.fontSize * 0.35;

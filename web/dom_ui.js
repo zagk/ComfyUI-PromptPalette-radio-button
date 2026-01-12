@@ -1,17 +1,23 @@
 import { findTextWidget, hideWidget, showWidget } from "./ui_utils.js";
 import { Line } from "./line.js";
 
-let CONFIG = null;
+const CONFIG = {
+  lineHeight: 26,
+  fontSize: 14,
+  checkboxSize: 18,
+  spaceBetweenCheckboxAndText: 8,
+  weightButtonSize: 18,
+  weightLabelWidth: 30,
+};
 
 const DOM_WIDGET_NAME = "promptpalette_ui";
 
-export function setupDomUI(nodeType, config, app) {
+export function setupDomUI(nodeType, app) {
   // Hook once per node type to avoid double-wrapping prototype methods.
   if (nodeType.prototype.__nodeTypeInitialized) {
     return;
   }
   nodeType.prototype.__nodeTypeInitialized = true;
-  CONFIG = config;
 
   // Run the original handler to preserve other extensions.
   const origOnNodeCreated = nodeType.prototype.onNodeCreated;

@@ -2,28 +2,15 @@ import { app } from "../../scripts/app.js";
 import { setupCanvasUI } from "./canvas_ui.js";
 import { refreshDomUI, setupDomUI } from "./dom_ui.js";
 
-const CONFIG = {
-  minNodeHeight: 80,
-  topNodePadding: 40,
-  sideNodePadding: 14,
-  lineHeight: 24,
-  fontSize: 14,
-  checkboxSize: 16,
-  spaceBetweenCheckboxAndText: 6,
-  weightButtonSize: 16,
-  weightLabelWidth: 24,
-  domFooterHeight: 36,
-};
-
 app.registerExtension({
   name: "PromptPalette",
 
   async beforeRegisterNodeDef(nodeType, nodeData, app) {
     if (nodeData.name === "PromptPalette") {
       if (isVueNodesMode()) {
-        setupDomUI(nodeType, CONFIG, app);
+        setupDomUI(nodeType, app);
       } else {
-        setupCanvasUI(nodeType, CONFIG, app);
+        setupCanvasUI(nodeType, app);
       }
     }
   },
