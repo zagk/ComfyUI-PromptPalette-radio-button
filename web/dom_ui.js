@@ -1,15 +1,5 @@
-import {
-  adjustWeightInLine,
-  findTextWidget,
-  removeLeadingCommentPrefix,
-  getPhraseText,
-  getWeightText,
-  isEmptyLine,
-  isLineCommented,
-  parseWeight,
-  setWidgetVisibility,
-  toggleCommentOnLine,
-} from "./shared.js";
+import { findTextWidget, hideWidget, showWidget } from "./ui_utils.js";
+import { Line } from "./line.js";
 
 let CONFIG = null;
 
@@ -216,7 +206,11 @@ class PromptPaletteDomUI {
   updateTextWidgetVisibility() {
     if (!this.textWidget) return;
     const visibility = this.mode === PromptPaletteDomUI.MODE.EDIT;
-    setWidgetVisibility(this.textWidget, visibility);
+    if (visibility) {
+      showWidget(this.textWidget);
+    } else {
+      hideWidget(this.textWidget);
+    }
   }
 
   refreshNodeWidgets() {
@@ -284,7 +278,9 @@ class PromptPaletteDomUI {
     const textLines = this.textWidget.value.split("\n");
     if (lineIndex < 0 || lineIndex >= textLines.length) return;
 
-    toggleCommentOnLine(textLines, lineIndex);
+    const line = new Line(textLines[lineIndex]);
+    line.toggleComment();
+    textLines[lineIndex] = line.buildText();
     this.textWidget.value = textLines.join("\n");
     this.switchToDisplayModeUI();
   }
@@ -294,12 +290,9 @@ class PromptPaletteDomUI {
     const textLines = this.textWidget.value.split("\n");
     if (lineIndex < 0 || lineIndex >= textLines.length) return;
 
-    textLines[lineIndex] = adjustWeightInLine(
-      textLines[lineIndex],
-      delta,
-      CONFIG.minWeight,
-      CONFIG.maxWeight,
-    );
+    const line = new Line(textLines[lineIndex]);
+    line.adjustWeight(delta);
+    textLines[lineIndex] = line.buildText();
     this.textWidget.value = textLines.join("\n");
     this.switchToDisplayModeUI();
   }
@@ -322,16 +315,16 @@ class PromptPaletteDomUI {
 
 class PromptPaletteRow {
   constructor(lineText, index) {
-    this.lineText = lineText;
+    this.line = new Line(lineText);
     this.index = index;
     this.element = this.createElement();
   }
 
   createElement() {
-    if (isEmptyLine(this.lineText)) {
+    if (this.line.isPhraseTextEmpty()) {
       return this.createEmptyRow();
     }
-    const isCommented = isLineCommented(this.lineText);
+    const isCommented = this.line.isCommented;
     const row = document.createElement("div");
     row.style.height = `${CONFIG.lineHeight}px`;
     row.style.display = "flex";
@@ -341,34 +334,25 @@ class PromptPaletteRow {
       row.style.opacity = "0.5";
     }
 
-    const lineTextWithoutCommentPrefix = removeLeadingCommentPrefix(
-      this.lineText,
-      isCommented,
-    );
-    const weightValue = parseWeight(lineTextWithoutCommentPrefix);
-    const isWeighted = weightValue !== 1.0;
-
-    // Build checkbox + phrase text.
+    // Build Checkbox + Display Text.
     row.append(this.createCheckbox(isCommented));
-    const phraseText = this.createPhraseText(isCommented);
-    if (isWeighted) {
-      phraseText.style.fontWeight = "bold";
+    const displayTextElement = this.createDisplayText();
+    if (this.line.weight !== 1.0) {
+      displayTextElement.style.fontWeight = "bold";
     }
-    row.append(phraseText);
+    row.append(displayTextElement);
 
-    // Add weight label and buttons unless the line is only a comment marker.
-    if (!(isCommented && !lineTextWithoutCommentPrefix.trim())) {
-      const weightButtonsContainer = this.createWeightButtonsContainer();
-      const weightText = getWeightText(lineTextWithoutCommentPrefix);
-      if (weightText) {
-        weightButtonsContainer.append(this.createWeightLabel(weightText));
-      }
+    const weightButtonsContainer = this.createWeightButtonsContainer();
+    if (this.line.weight !== 1.0) {
       weightButtonsContainer.append(
-        this.createWeightButton("-", () => this.onWeightMinusClick()),
-        this.createWeightButton("+", () => this.onWeightPlusClick()),
+        this.createWeightLabel(this.line.getWeightText()),
       );
-      row.append(weightButtonsContainer);
     }
+    weightButtonsContainer.append(
+      this.createWeightButton("-", () => this.onWeightMinusClick()),
+      this.createWeightButton("+", () => this.onWeightPlusClick()),
+    );
+    row.append(weightButtonsContainer);
 
     return row;
   }
@@ -398,14 +382,14 @@ class PromptPaletteRow {
     return checkbox;
   }
 
-  createPhraseText(isCommented) {
-    const phraseText = document.createElement("span");
-    phraseText.textContent = getPhraseText(this.lineText, isCommented);
-    phraseText.style.flex = "1";
-    phraseText.style.overflow = "hidden";
-    phraseText.style.textOverflow = "ellipsis";
-    phraseText.style.whiteSpace = "pre";
-    return phraseText;
+  createDisplayText() {
+    const displayTextElement = document.createElement("span");
+    displayTextElement.textContent = this.line.getDisplayText();
+    displayTextElement.style.flex = "1";
+    displayTextElement.style.overflow = "hidden";
+    displayTextElement.style.textOverflow = "ellipsis";
+    displayTextElement.style.whiteSpace = "pre";
+    return displayTextElement;
   }
 
   createWeightButtonsContainer() {

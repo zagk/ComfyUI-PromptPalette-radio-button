@@ -1,16 +1,10 @@
 import {
-  adjustWeightInLine,
-  calculateNodeHeight,
   findTextWidget,
-  removeLeadingCommentPrefix,
-  getPhraseText,
-  getWeightText,
-  isEmptyLine,
-  isLineCommented,
-  parseWeight,
-  setWidgetVisibility,
-  toggleCommentOnLine,
-} from "./shared.js";
+  hideWidgetAndKeepSpace,
+  showWidget,
+  calculateNodeHeight,
+} from "./ui_utils.js";
+import { Line } from "./line.js";
 
 let CONFIG = null;
 let colorCache = null;
@@ -37,7 +31,7 @@ export function setupCanvasUI(nodeType, config, app) {
     this.isEditMode = false;
     const textWidget = findTextWidget(this);
     if (textWidget) {
-      setWidgetVisibility(textWidget, false, { keepLayout: true });
+      hideWidgetAndKeepSpace(textWidget);
       addEditButton(this, textWidget, app);
       setupClickHandler(this, textWidget, app);
     }
@@ -64,7 +58,11 @@ function addEditButton(node, textWidget, app) {
   // Toggle between edit and display modes using the built-in widget button.
   const textButton = node.addWidget("button", "Edit", "edit_text", () => {
     node.isEditMode = !node.isEditMode;
-    setWidgetVisibility(textWidget, node.isEditMode, { keepLayout: true });
+    if (node.isEditMode) {
+      showWidget(textWidget);
+    } else {
+      hideWidgetAndKeepSpace(textWidget);
+    }
     textButton.name = node.isEditMode ? "Save" : "Edit";
     app.graph.setDirtyCanvas(true);
   });
@@ -112,7 +110,9 @@ function handleClickableAreaAction(area, textWidget, app) {
     case "toggle": {
       const textLines = textWidget.value.split("\n");
       if (area.lineIndex >= 0 && area.lineIndex < textLines.length) {
-        toggleCommentOnLine(textLines, area.lineIndex);
+        const line = new Line(textLines[area.lineIndex]);
+        line.toggleComment();
+        textLines[area.lineIndex] = line.buildText();
         textWidget.value = textLines.join("\n");
         app.graph.setDirtyCanvas(true);
       }
@@ -130,13 +130,9 @@ function handleClickableAreaAction(area, textWidget, app) {
 function adjustWeightInText(textWidget, lineIndex, delta, app) {
   const textLines = textWidget.value.split("\n");
   if (lineIndex >= 0 && lineIndex < textLines.length) {
-    const line = textLines[lineIndex];
-    textLines[lineIndex] = adjustWeightInLine(
-      line,
-      delta,
-      CONFIG.minWeight,
-      CONFIG.maxWeight,
-    );
+    const line = new Line(textLines[lineIndex]);
+    line.adjustWeight(delta);
+    textLines[lineIndex] = line.buildText();
     textWidget.value = textLines.join("\n");
     app.graph.setDirtyCanvas(true);
   }
@@ -176,16 +172,16 @@ function drawCheckboxItems(ctx, lines, node) {
     node.clickableAreas = [];
   }
 
-  lines.forEach((line, index) => {
-    if (isEmptyLine(line)) return;
+  lines.forEach((lineText, index) => {
+    const line = new Line(lineText);
+    if (line.isPhraseTextEmpty()) return;
 
     const y = CONFIG.topNodePadding + index * CONFIG.lineHeight;
-    const isCommented = isLineCommented(line);
+    const isCommented = line.isCommented;
 
     drawCheckbox(ctx, y, isCommented, node, index);
 
-    const phraseText = getPhraseText(line, isCommented);
-    drawPhraseText(ctx, phraseText, y, isCommented, line);
+    drawDisplayText(ctx, line, y, isCommented);
 
     drawWeightControls(ctx, y, line, isCommented, node, index);
   });
@@ -234,16 +230,14 @@ function drawCheckbox(ctx, y, isCommented, node, lineIndex) {
   }
 }
 
-function drawPhraseText(ctx, phraseText, y, isCommented, originalLine) {
+function drawDisplayText(ctx, line, y, isCommented) {
   const colors = getColors();
   ctx.fillStyle = isCommented
     ? colors.inactiveTextColor
     : colors.defaultTextColor;
   ctx.textAlign = "left";
 
-  const textToCheck = removeLeadingCommentPrefix(originalLine, isCommented);
-  const weight = parseWeight(textToCheck);
-  const isBold = weight !== 1.0;
+  const isBold = line.weight !== 1.0;
 
   ctx.font = isBold
     ? `bold ${CONFIG.fontSize}px monospace`
@@ -253,7 +247,7 @@ function drawPhraseText(ctx, phraseText, y, isCommented, originalLine) {
   const textBaseline = checkboxCenter + CONFIG.fontSize * 0.35;
 
   ctx.fillText(
-    phraseText,
+    line.getDisplayText(),
     CONFIG.sideNodePadding +
       CONFIG.checkboxSize +
       CONFIG.spaceBetweenCheckboxAndText,
@@ -264,11 +258,9 @@ function drawPhraseText(ctx, phraseText, y, isCommented, originalLine) {
 function drawWeightControls(ctx, y, line, isCommented, node, lineIndex) {
   // Draw +/- buttons and optional weight label.
   const nodeWidth = node.size[0];
-  const textToCheck = removeLeadingCommentPrefix(line, isCommented);
+  if (line.isPhraseTextEmpty()) return;
 
-  if (isCommented && !textToCheck.trim()) return;
-
-  const weightText = getWeightText(textToCheck);
+  const weightText = line.getWeightText();
   const checkboxCenter = y + CONFIG.checkboxSize / 2;
 
   let currentX = nodeWidth - CONFIG.sideNodePadding;
@@ -299,7 +291,7 @@ function drawWeightControls(ctx, y, line, isCommented, node, lineIndex) {
   );
   currentX = minusButtonX - 4;
 
-  if (weightText) {
+  if (line.weight !== 1.0) {
     const textColors = getColors();
     ctx.fillStyle = isCommented
       ? textColors.inactiveTextColor

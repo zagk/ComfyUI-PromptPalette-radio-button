@@ -13,8 +13,6 @@ const CONFIG = {
   weightButtonSize: 16,
   weightLabelWidth: 24,
   domFooterHeight: 36,
-  minWeight: 0.1,
-  maxWeight: 2.0,
 };
 
 app.registerExtension({
