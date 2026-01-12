@@ -2,7 +2,7 @@ import {
   adjustWeightInLine,
   calculateNodeHeight,
   findTextWidget,
-  getLineTextForWeight,
+  removeLeadingCommentPrefix,
   getPhraseText,
   getWeightText,
   isEmptyLine,
@@ -248,7 +248,7 @@ function drawPhraseText(ctx, phraseText, y, isCommented, originalLine) {
     : colors.defaultTextColor;
   ctx.textAlign = "left";
 
-  const textToCheck = getLineTextForWeight(originalLine, isCommented);
+  const textToCheck = removeLeadingCommentPrefix(originalLine, isCommented);
   const weight = parseWeight(textToCheck);
   const isBold = weight !== 1.0;
 
@@ -271,7 +271,7 @@ function drawPhraseText(ctx, phraseText, y, isCommented, originalLine) {
 function drawWeightControls(ctx, y, line, isCommented, node, lineIndex) {
   // Draw +/- buttons and optional weight label.
   const nodeWidth = node.size[0];
-  const textToCheck = getLineTextForWeight(line, isCommented);
+  const textToCheck = removeLeadingCommentPrefix(line, isCommented);
 
   if (isCommented && !textToCheck.trim()) return;
 

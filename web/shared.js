@@ -56,7 +56,10 @@ export function toggleCommentOnLine(textLines, lineIndex) {
   }
 }
 
-export function getLineTextForWeight(line, isCommented = isLineCommented(line)) {
+export function removeLeadingCommentPrefix(
+  line,
+  isCommented = isLineCommented(line),
+) {
   if (!isCommented) {
     return line;
   }

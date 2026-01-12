@@ -1,8 +1,7 @@
 import {
   adjustWeightInLine,
-  calculateNodeHeight,
   findTextWidget,
-  getLineTextForWeight,
+  removeLeadingCommentPrefix,
   getPhraseText,
   getWeightText,
   isEmptyLine,
@@ -16,7 +15,6 @@ import {
 let CONFIG = null;
 
 const DOM_WIDGET_NAME = "promptpalette_ui";
-const STYLE_ID = "promptpalette-nodes2-style";
 
 export function setupDomUI(nodeType, config, app) {
   // Hook once per node type to avoid double-wrapping prototype methods.
@@ -40,415 +38,456 @@ export function setupDomUI(nodeType, config, app) {
       return;
     }
     this.__promptPaletteUiMode = "dom";
-    this.isEditMode = false;
     const textWidget = findTextWidget(this);
     if (!textWidget) return;
 
-    addStylesIfMissing();
-    const domState = createDomState(this, textWidget, app);
-    this.__promptPaletteDomState = domState;
-
-    updateTextWidgetVisibility(this, textWidget, false);
-    setupDomInteractions(this, textWidget, domState, app);
-    wrapCollapseHandler(this, domState, app);
-    updateDomVisibility(this, domState, app);
-    updateDomList(this, textWidget, domState, app);
+    this.__promptPaletteDomUI = new PromptPaletteDomUI(this, textWidget, app);
   };
 }
 
 export function refreshDomUI(node, app) {
   // Sync DOM UI from existing node state when a graph is loaded.
-  if (!node || !node.__promptPaletteDomState) return;
+  if (!node || !node.__promptPaletteDomUI) return;
   if (!isVueNodesMode()) return;
-  const textWidget = findTextWidget(node);
-  if (!textWidget) return;
-  const domState = node.__promptPaletteDomState;
-  updateTextWidgetVisibility(node, textWidget, !!node.isEditMode);
-  updateDomVisibility(node, domState, app);
-  if (!node.isEditMode) {
-    updateDomList(node, textWidget, domState, app);
-  } else {
-    setEditLayout(domState);
-    updateEditButtonLabel(node, domState);
-    app.graph.setDirtyCanvas(true);
-  }
+  node.__promptPaletteDomUI.refresh();
 }
 
-// ========================================
-// UI Control
-// ========================================
-
-function setEditMode(node, textWidget, domState, app, isEditMode) {
-  node.isEditMode = isEditMode;
-  updateTextWidgetVisibility(node, textWidget, node.isEditMode);
-  updateDomVisibility(node, domState, app);
-  if (node.isEditMode) {
-    setEditLayout(domState);
-  } else {
-    updateDomList(node, textWidget, domState, app);
-  }
-  updateEditButtonLabel(node, domState);
-  app.graph.setDirtyCanvas(true);
-}
-
-function updateEditButtonLabel(node, domState) {
-  if (!domState.toggleButton) return;
-  domState.toggleButton.textContent = node.isEditMode ? "Save" : "Edit";
-}
-
-function updateTextWidgetVisibility(node, textWidget, visible) {
-  // Mirror visibility/disabled state to the underlying Comfy widget.
-  if (!textWidget) return;
-  setWidgetVisibility(textWidget, visible);
-  if (textWidget.options) {
-    textWidget.options.hidden = !visible;
-    textWidget.options.canvasOnly = !visible;
-  }
-  textWidget.hidden = !visible;
-  textWidget.disabled = !visible;
-  textWidget.computedDisabled = !visible;
-  if (node?.widgets) {
-    node.widgets = [...node.widgets];
-  }
-  if (typeof textWidget.callback === "function") {
-    textWidget.callback(textWidget.value);
-  }
-}
-
-function setupDomInteractions(node, textWidget, domState, app) {
-  domState.container.addEventListener("click", (event) => {
-    if (node.isEditMode) return;
-    const target =
-      event.target instanceof Element
-        ? event.target.closest("[data-pp-action]")
-        : null;
-    if (!target) return;
-    const action = target.dataset.ppAction;
-    const lineIndex = Number.parseInt(target.dataset.lineIndex || "", 10);
-    if (!action || Number.isNaN(lineIndex)) return;
-
-    const textLines = textWidget.value.split("\n");
-    if (lineIndex < 0 || lineIndex >= textLines.length) return;
-
-    switch (action) {
-      case "toggle":
-        toggleCommentOnLine(textLines, lineIndex);
-        break;
-      case "weight_plus":
-        textLines[lineIndex] = adjustWeightInLine(
-          textLines[lineIndex],
-          0.1,
-          CONFIG.minWeight,
-          CONFIG.maxWeight,
-        );
-        break;
-      case "weight_minus":
-        textLines[lineIndex] = adjustWeightInLine(
-          textLines[lineIndex],
-          -0.1,
-          CONFIG.minWeight,
-          CONFIG.maxWeight,
-        );
-        break;
-      default:
-        return;
-    }
-
-    textWidget.value = textLines.join("\n");
-    updateDomList(node, textWidget, domState, app);
-    app.graph.setDirtyCanvas(true);
+class PromptPaletteDomUI {
+  static MODE = Object.freeze({
+    EDIT: "edit",
+    DISPLAY: "display",
   });
-}
-
-function wrapCollapseHandler(node, domState, app) {
-  // Keep DOM widget visibility in sync with node collapse.
-  const origCollapse = node.collapse;
-  node.collapse = function () {
-    const result = origCollapse
-      ? origCollapse.apply(this, arguments)
-      : undefined;
-    updateDomVisibility(this, domState, app);
-    return result;
-  };
-}
-
-function updateDomVisibility(node, domState, app) {
-  const isCollapsed = !!(node.flags && node.flags.collapsed);
-  const shouldShow = !isCollapsed;
-  domState.container.style.display = shouldShow ? "" : "none";
-  if (domState.widget) {
-    domState.widget.hidden = !shouldShow;
-    if (domState.widget.options) {
-      domState.widget.options.hidden = !shouldShow;
-    }
-  }
-  app.graph.setDirtyCanvas(true);
-}
-
-// ========================================
-// DOM Rendering
-// ========================================
-
-function createDomState(node, textWidget, app) {
-  // Build DOM structure and attach it as a DOM widget.
-  const container = document.createElement("div");
-  container.className = "pp-root";
-  container.style.width = "100%";
-
-  const list = document.createElement("div");
-  list.className = "pp-list";
-  const empty = document.createElement("div");
-  empty.className = "pp-empty";
-  empty.textContent = "No Text";
-
-  const footer = document.createElement("div");
-  footer.className = "pp-footer";
-  const toggleButton = document.createElement("button");
-  toggleButton.type = "button";
-  toggleButton.className = "pp-toggle-button";
-
-  const domState = {
-    container,
-    list,
-    empty,
-    footer,
-    toggleButton,
-    widget: null,
-  };
-
-  toggleButton.addEventListener("click", () => {
-    setEditMode(node, textWidget, domState, app, !node.isEditMode);
+  static EVENT = Object.freeze({
+    TOGGLE: "pp:toggle",
+    WEIGHT_PLUS: "pp:weight-plus",
+    WEIGHT_MINUS: "pp:weight-minus",
   });
 
-  footer.append(toggleButton);
-  container.append(list, empty, footer);
+  constructor(node, textWidget, app) {
+    this.node = node;
+    this.textWidget = textWidget;
+    this.app = app;
+    this.mode = PromptPaletteDomUI.MODE.DISPLAY;
 
-  const widget = node.addDOMWidget(
-    DOM_WIDGET_NAME,
-    "promptpalette",
-    container,
-    {},
-  );
-  widget.serialize = false;
-  widget.options.margin = 0;
-  domState.widget = widget;
-  updateEditButtonLabel(node, domState);
+    this.rootContainer = this.createRootContainer();
+    this.rowsContainer = this.createRowsContainer();
+    this.emptyMessage = this.createEmptyMessage();
+    this.toggleButton = this.createToggleButton();
+    const buttonContainer = this.createButtonContainer();
+    buttonContainer.append(this.toggleButton);
 
-  return domState;
-}
-
-function updateDomList(node, textWidget, domState, app) {
-  // Render rows from text and update layout height.
-  const text = textWidget.value || "";
-  const lines = text.split("\n");
-  const fallbackHeight =
-    calculateNodeHeight(lines.length, CONFIG) + CONFIG.domFooterHeight;
-
-  domState.list.replaceChildren();
-
-  if (text.trim() === "") {
-    domState.list.style.display = "none";
-    domState.empty.style.display = "flex";
-    app.graph.setDirtyCanvas(true);
-    return;
+    this.rootContainer.append(
+      this.rowsContainer,
+      this.emptyMessage,
+      buttonContainer,
+    );
+    this.rootWidget = this.registerRootWidget();
+    this.rowsContainer.addEventListener(
+      PromptPaletteDomUI.EVENT.TOGGLE,
+      (event) => this.handleRowToggleEvent(event),
+    );
+    this.rowsContainer.addEventListener(
+      PromptPaletteDomUI.EVENT.WEIGHT_PLUS,
+      (event) => this.handleRowWeightPlusEvent(event),
+    );
+    this.rowsContainer.addEventListener(
+      PromptPaletteDomUI.EVENT.WEIGHT_MINUS,
+      (event) => this.handleRowWeightMinusEvent(event),
+    );
+    this.attachCollapseHook();
+    this.updateRootWidgetVisibility();
+    this.applyMode();
   }
 
-  domState.list.style.display = "flex";
-  domState.empty.style.display = "none";
+  refresh() {
+    if (!this.textWidget) {
+      this.textWidget = findTextWidget(this.node);
+      if (!this.textWidget) return;
+    }
+    this.updateRootWidgetVisibility();
+    this.applyMode();
+  }
 
-  lines.forEach((line, index) => {
-    if (isEmptyLine(line)) {
-      const emptyRow = document.createElement("div");
-      emptyRow.className = "pp-row pp-row--empty";
-      emptyRow.style.height = `${CONFIG.lineHeight}px`;
-      domState.list.append(emptyRow);
+  createRootContainer() {
+    const rootContainer = document.createElement("div");
+    rootContainer.style.width = "100%";
+    rootContainer.style.display = "flex";
+    rootContainer.style.flexDirection = "column";
+    rootContainer.style.gap = "2px";
+    rootContainer.style.boxSizing = "border-box";
+    rootContainer.style.height = "100%";
+    rootContainer.style.fontSize = `${CONFIG.fontSize}px`;
+    rootContainer.style.color = "var(--input-text)";
+    return rootContainer;
+  }
+
+  createRowsContainer() {
+    const rowsContainer = document.createElement("div");
+    rowsContainer.style.display = "flex";
+    rowsContainer.style.flexDirection = "column";
+    rowsContainer.style.gap = "4px";
+    rowsContainer.style.flex = "1 1 auto";
+    rowsContainer.style.minHeight = "0";
+    return rowsContainer;
+  }
+
+  createEmptyMessage() {
+    const emptyMessage = document.createElement("div");
+    emptyMessage.textContent = "No Text";
+    emptyMessage.style.display = "none";
+    emptyMessage.style.alignItems = "center";
+    emptyMessage.style.justifyContent = "center";
+    emptyMessage.style.flex = "1";
+    emptyMessage.style.opacity = "0.6";
+    return emptyMessage;
+  }
+
+  createButtonContainer() {
+    const buttonContainer = document.createElement("div");
+    buttonContainer.style.marginTop = "auto";
+    buttonContainer.style.paddingTop = "6px";
+
+    return buttonContainer;
+  }
+
+  createToggleButton() {
+    const toggleButton = document.createElement("button");
+    toggleButton.type = "button";
+    toggleButton.style.width = "100%";
+    toggleButton.style.border = "0";
+    toggleButton.style.borderRadius = "6px";
+    toggleButton.style.padding = "6px 8px";
+    toggleButton.style.background = "var(--component-node-widget-background)";
+    toggleButton.style.color = "var(--base-foreground)";
+    toggleButton.style.fontSize = "12px";
+    toggleButton.style.lineHeight = "1.2";
+    toggleButton.style.cursor = "pointer";
+
+    toggleButton.addEventListener("click", () => {
+      this.changeMode(
+        this.mode === PromptPaletteDomUI.MODE.EDIT
+          ? PromptPaletteDomUI.MODE.DISPLAY
+          : PromptPaletteDomUI.MODE.EDIT,
+      );
+    });
+    toggleButton.addEventListener("mouseenter", () => {
+      toggleButton.style.background =
+        "var(--component-node-widget-background-hovered)";
+    });
+    toggleButton.addEventListener("mouseleave", () => {
+      toggleButton.style.background = "var(--component-node-widget-background)";
+    });
+
+    return toggleButton;
+  }
+
+  registerRootWidget() {
+    const rootWidget = this.node.addDOMWidget(
+      DOM_WIDGET_NAME,
+      "promptpalette",
+      this.rootContainer,
+      {},
+    );
+    rootWidget.serialize = false;
+    rootWidget.options.margin = 0;
+    this.updateEditButtonLabel();
+    return rootWidget;
+  }
+
+  changeMode(mode) {
+    this.mode = mode;
+    this.applyMode();
+    if (this.mode !== PromptPaletteDomUI.MODE.DISPLAY) {
+      this.app.graph.setDirtyCanvas(true);
+    }
+  }
+
+  applyMode() {
+    this.updateTextWidgetVisibility();
+    this.refreshNodeWidgets();
+    this.callTextWidgetCallback();
+    this.updateEditButtonLabel();
+    if (this.mode === PromptPaletteDomUI.MODE.DISPLAY) {
+      this.switchToDisplayModeUI();
+    } else {
+      this.switchToEditModeUI();
+    }
+  }
+
+  updateEditButtonLabel() {
+    if (!this.toggleButton) return;
+    this.toggleButton.textContent =
+      this.mode === PromptPaletteDomUI.MODE.EDIT ? "Save" : "Edit";
+  }
+
+  updateTextWidgetVisibility() {
+    if (!this.textWidget) return;
+    const visibility = this.mode === PromptPaletteDomUI.MODE.EDIT;
+    setWidgetVisibility(this.textWidget, visibility);
+  }
+
+  refreshNodeWidgets() {
+    if (!this.node?.widgets) return;
+    this.node.widgets = [...this.node.widgets];
+  }
+
+  callTextWidgetCallback() {
+    if (!this.textWidget || typeof this.textWidget.callback !== "function") {
       return;
     }
+    this.textWidget.callback(this.textWidget.value);
+  }
 
-    const isCommented = isLineCommented(line);
+  attachCollapseHook() {
+    const origCollapse = this.node.collapse;
+    this.node.collapse = function () {
+      const result = origCollapse
+        ? origCollapse.apply(this, arguments)
+        : undefined;
+      this.__promptPaletteDomUI?.updateRootWidgetVisibility();
+      return result;
+    };
+  }
+
+  updateRootWidgetVisibility() {
+    const isCollapsed = !!(this.node.flags && this.node.flags.collapsed);
+    const shouldShow = !isCollapsed;
+    this.rootContainer.style.display = shouldShow ? "" : "none";
+    if (this.rootWidget) {
+      this.rootWidget.hidden = !shouldShow;
+      if (this.rootWidget.options) {
+        this.rootWidget.options.hidden = !shouldShow;
+      }
+    }
+  }
+
+  switchToDisplayModeUI() {
+    const text = this.textWidget.value || "";
+    this.rowsContainer.replaceChildren();
+    if (!text.trim()) {
+      // Empty text: show the empty-state message
+      this.rowsContainer.style.display = "none";
+      this.emptyMessage.style.display = "flex";
+      return;
+    }
+    // Non-empty: show rows
+    this.rowsContainer.style.display = "flex";
+    this.emptyMessage.style.display = "none";
+    // Build row elements
+    text.split("\n").forEach((line, index) => {
+      const row = new PromptPaletteRow(line, index);
+      this.rowsContainer.append(row.element);
+    });
+    this.app.graph.setDirtyCanvas(true);
+  }
+
+  switchToEditModeUI() {
+    this.rowsContainer.style.display = "none";
+    this.emptyMessage.style.display = "none";
+  }
+
+  toggleLine(lineIndex) {
+    if (this.mode === PromptPaletteDomUI.MODE.EDIT) return;
+    const textLines = this.textWidget.value.split("\n");
+    if (lineIndex < 0 || lineIndex >= textLines.length) return;
+
+    toggleCommentOnLine(textLines, lineIndex);
+    this.textWidget.value = textLines.join("\n");
+    this.switchToDisplayModeUI();
+  }
+
+  adjustLineWeight(lineIndex, delta) {
+    if (this.mode === PromptPaletteDomUI.MODE.EDIT) return;
+    const textLines = this.textWidget.value.split("\n");
+    if (lineIndex < 0 || lineIndex >= textLines.length) return;
+
+    textLines[lineIndex] = adjustWeightInLine(
+      textLines[lineIndex],
+      delta,
+      CONFIG.minWeight,
+      CONFIG.maxWeight,
+    );
+    this.textWidget.value = textLines.join("\n");
+    this.switchToDisplayModeUI();
+  }
+
+  handleRowToggleEvent(event) {
+    const lineIndex = event?.detail?.index;
+    this.toggleLine(lineIndex);
+  }
+
+  handleRowWeightPlusEvent(event) {
+    const lineIndex = event?.detail?.index;
+    this.adjustLineWeight(lineIndex, 0.1);
+  }
+
+  handleRowWeightMinusEvent(event) {
+    const lineIndex = event?.detail?.index;
+    this.adjustLineWeight(lineIndex, -0.1);
+  }
+}
+
+class PromptPaletteRow {
+  constructor(lineText, index) {
+    this.lineText = lineText;
+    this.index = index;
+    this.element = this.createElement();
+  }
+
+  createElement() {
+    if (isEmptyLine(this.lineText)) {
+      return this.createEmptyRow();
+    }
+    const isCommented = isLineCommented(this.lineText);
     const row = document.createElement("div");
-    row.className = "pp-row";
     row.style.height = `${CONFIG.lineHeight}px`;
+    row.style.display = "flex";
+    row.style.alignItems = "center";
+    row.style.gap = `${CONFIG.spaceBetweenCheckboxAndText}px`;
     if (isCommented) {
-      row.classList.add("pp-row--inactive");
+      row.style.opacity = "0.5";
     }
 
-    const weightTarget = getLineTextForWeight(line, isCommented);
-    const weightValue = parseWeight(weightTarget);
-    if (weightValue !== 1.0) {
-      row.classList.add("pp-row--weighted");
-    }
+    const lineTextWithoutCommentPrefix = removeLeadingCommentPrefix(
+      this.lineText,
+      isCommented,
+    );
+    const weightValue = parseWeight(lineTextWithoutCommentPrefix);
+    const isWeighted = weightValue !== 1.0;
 
-    const checkbox = document.createElement("button");
-    checkbox.type = "button";
-    checkbox.className = "pp-checkbox";
-    checkbox.dataset.ppAction = "toggle";
-    checkbox.dataset.lineIndex = String(index);
-    if (!isCommented) {
-      checkbox.classList.add("pp-checkbox--checked");
-      checkbox.textContent = "\u2713";
+    // Build checkbox + phrase text.
+    row.append(this.createCheckbox(isCommented));
+    const phraseText = this.createPhraseText(isCommented);
+    if (isWeighted) {
+      phraseText.style.fontWeight = "bold";
     }
-    row.append(checkbox);
-
-    const phraseText = document.createElement("span");
-    phraseText.className = "pp-text";
-    phraseText.textContent = getPhraseText(line, isCommented);
     row.append(phraseText);
 
-    if (!(isCommented && !weightTarget.trim())) {
-      const weightWrap = document.createElement("div");
-      weightWrap.className = "pp-weight";
-
-      const weightText = getWeightText(weightTarget);
+    // Add weight label and buttons unless the line is only a comment marker.
+    if (!(isCommented && !lineTextWithoutCommentPrefix.trim())) {
+      const weightButtonsContainer = this.createWeightButtonsContainer();
+      const weightText = getWeightText(lineTextWithoutCommentPrefix);
       if (weightText) {
-        const label = document.createElement("span");
-        label.className = "pp-weight-label";
-        label.textContent = weightText;
-        weightWrap.append(label);
+        weightButtonsContainer.append(this.createWeightLabel(weightText));
       }
-
-      const minusButton = document.createElement("button");
-      minusButton.type = "button";
-      minusButton.className = "pp-weight-button";
-      minusButton.dataset.ppAction = "weight_minus";
-      minusButton.dataset.lineIndex = String(index);
-      minusButton.textContent = "-";
-
-      const plusButton = document.createElement("button");
-      plusButton.type = "button";
-      plusButton.className = "pp-weight-button";
-      plusButton.dataset.ppAction = "weight_plus";
-      plusButton.dataset.lineIndex = String(index);
-      plusButton.textContent = "+";
-
-      weightWrap.append(minusButton, plusButton);
-      row.append(weightWrap);
+      weightButtonsContainer.append(
+        this.createWeightButton("-", () => this.onWeightMinusClick()),
+        this.createWeightButton("+", () => this.onWeightPlusClick()),
+      );
+      row.append(weightButtonsContainer);
     }
 
-    domState.list.append(row);
-  });
+    return row;
+  }
 
-  app.graph.setDirtyCanvas(true);
-}
+  createCheckbox(isCommented) {
+    const checkbox = document.createElement("button");
+    checkbox.type = "button";
+    checkbox.style.width = `${CONFIG.checkboxSize}px`;
+    checkbox.style.height = `${CONFIG.checkboxSize}px`;
+    checkbox.style.borderRadius = "4px";
+    checkbox.style.border = "1px solid var(--input-text)";
+    checkbox.style.background = "transparent";
+    checkbox.style.color = "var(--comfy-input-bg)";
+    checkbox.style.lineHeight = "1";
+    checkbox.style.padding = "0";
+    checkbox.style.display = "inline-flex";
+    checkbox.style.alignItems = "center";
+    checkbox.style.justifyContent = "center";
+    checkbox.style.cursor = "pointer";
+    if (!isCommented) {
+      checkbox.textContent = "\u2713";
+      checkbox.style.background = "var(--input-text)";
+    }
+    checkbox.addEventListener("click", () => {
+      this.onToggleClick();
+    });
+    return checkbox;
+  }
 
-function setEditLayout(domState) {
-  domState.list.style.display = "none";
-  domState.empty.style.display = "none";
-}
+  createPhraseText(isCommented) {
+    const phraseText = document.createElement("span");
+    phraseText.textContent = getPhraseText(this.lineText, isCommented);
+    phraseText.style.flex = "1";
+    phraseText.style.overflow = "hidden";
+    phraseText.style.textOverflow = "ellipsis";
+    phraseText.style.whiteSpace = "pre";
+    return phraseText;
+  }
 
-function addStylesIfMissing() {
-  // Inject styles once per page.
-  if (document.getElementById(STYLE_ID)) return;
-  const style = document.createElement("style");
-  style.id = STYLE_ID;
-  style.textContent = `
-.pp-root {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  box-sizing: border-box;
-  height: 100%;
-  font-size: ${CONFIG.fontSize}px;
-  color: var(--input-text);
-}
-.pp-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex: 1 1 auto;
-  min-height: 0;
-}
-.pp-row {
-  display: flex;
-  align-items: center;
-  gap: ${CONFIG.spaceBetweenCheckboxAndText}px;
-}
-.pp-row--empty {
-  pointer-events: none;
-}
-.pp-row--inactive {
-  opacity: 0.5;
-}
-.pp-row--weighted .pp-text {
-  font-weight: bold;
-}
-.pp-checkbox {
-  width: ${CONFIG.checkboxSize}px;
-  height: ${CONFIG.checkboxSize}px;
-  border-radius: 4px;
-  border: 1px solid var(--input-text);
-  background: transparent;
-  color: var(--comfy-input-bg);
-  line-height: 1;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-.pp-checkbox--checked {
-  background: var(--input-text);
-  color: var(--comfy-input-bg);
-}
-.pp-text {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: pre;
-}
-.pp-weight {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: auto;
-}
-.pp-weight-label {
-  width: ${CONFIG.weightLabelWidth}px;
-  text-align: right;
-}
-.pp-weight-button {
-  width: ${CONFIG.weightButtonSize}px;
-  height: ${CONFIG.weightButtonSize}px;
-  border-radius: 4px;
-  border: 0;
-  background: var(--component-node-widget-background);
-  color: var(--base-foreground);
-  font-size: 12px;
-  line-height: 1;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-.pp-weight-button:hover {
-  background: var(--component-node-widget-background-hovered);
-}
-.pp-footer {
-  margin-top: auto;
-  padding-top: 6px;
-}
-.pp-toggle-button {
-  width: 100%;
-  border: 0;
-  border-radius: 6px;
-  padding: 6px 8px;
-  background: var(--component-node-widget-background);
-  color: var(--base-foreground);
-  font-size: 12px;
-  line-height: 1.2;
-  cursor: pointer;
-}
-.pp-toggle-button:hover {
-  background: var(--component-node-widget-background-hovered);
-}
-.pp-empty {
-  display: none;
-  align-items: center;
-  justify-content: center;
-  flex: 1;
-  opacity: 0.6;
-}
-`;
-  document.head.append(style);
+  createWeightButtonsContainer() {
+    const weightButtonsContainer = document.createElement("div");
+    weightButtonsContainer.style.display = "inline-flex";
+    weightButtonsContainer.style.alignItems = "center";
+    weightButtonsContainer.style.gap = "4px";
+    weightButtonsContainer.style.marginLeft = "auto";
+    return weightButtonsContainer;
+  }
+
+  createWeightLabel(weightText) {
+    const label = document.createElement("span");
+    label.textContent = weightText;
+    label.style.width = `${CONFIG.weightLabelWidth}px`;
+    label.style.textAlign = "right";
+    return label;
+  }
+
+  createWeightButton(symbol, onClick) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = symbol;
+    button.style.width = `${CONFIG.weightButtonSize}px`;
+    button.style.height = `${CONFIG.weightButtonSize}px`;
+    button.style.borderRadius = "4px";
+    button.style.border = "0";
+    button.style.background = "var(--component-node-widget-background)";
+    button.style.color = "var(--base-foreground)";
+    button.style.fontSize = "12px";
+    button.style.lineHeight = "1";
+    button.style.padding = "0";
+    button.style.display = "inline-flex";
+    button.style.alignItems = "center";
+    button.style.justifyContent = "center";
+    button.style.cursor = "pointer";
+    button.addEventListener("click", onClick);
+    button.addEventListener("mouseenter", () => {
+      button.style.background =
+        "var(--component-node-widget-background-hovered)";
+    });
+    button.addEventListener("mouseleave", () => {
+      button.style.background = "var(--component-node-widget-background)";
+    });
+    return button;
+  }
+
+  onToggleClick() {
+    this.dispatchEvent(PromptPaletteDomUI.EVENT.TOGGLE);
+  }
+
+  onWeightPlusClick() {
+    this.dispatchEvent(PromptPaletteDomUI.EVENT.WEIGHT_PLUS);
+  }
+
+  onWeightMinusClick() {
+    this.dispatchEvent(PromptPaletteDomUI.EVENT.WEIGHT_MINUS);
+  }
+
+  dispatchEvent(type) {
+    this.element.dispatchEvent(
+      new CustomEvent(type, {
+        bubbles: true,
+        detail: { index: this.index },
+      }),
+    );
+  }
+
+  createEmptyRow() {
+    const emptyRow = document.createElement("div");
+    emptyRow.style.height = `${CONFIG.lineHeight}px`;
+    emptyRow.style.display = "flex";
+    emptyRow.style.alignItems = "center";
+    emptyRow.style.gap = `${CONFIG.spaceBetweenCheckboxAndText}px`;
+    emptyRow.style.pointerEvents = "none";
+    return emptyRow;
+  }
 }
