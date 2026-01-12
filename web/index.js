@@ -1,7 +1,6 @@
 import { app } from "../../scripts/app.js";
 import { setupCanvasUI } from "./canvas_ui.js";
 import { refreshDomUI, setupDomUI } from "./dom_ui.js";
-import { isVueNodesMode } from "./shared.js";
 
 const CONFIG = {
   minNodeHeight: 80,
@@ -41,3 +40,10 @@ app.registerExtension({
     }
   },
 });
+
+function isVueNodesMode() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  return !!(window.LiteGraph && window.LiteGraph.vueNodesMode);
+}

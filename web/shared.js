@@ -1,12 +1,5 @@
 const COMMENT_PREFIX_RE = /^\s*\/\/\s*/;
 
-export function isVueNodesMode() {
-  if (typeof window === "undefined") {
-    return false;
-  }
-  return !!(window.LiteGraph && window.LiteGraph.vueNodesMode);
-}
-
 export function findTextWidget(node) {
   if (!node || !node.widgets) return null;
   for (const w of node.widgets) {
