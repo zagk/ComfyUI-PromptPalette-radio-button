@@ -1,6 +1,7 @@
 import { app } from "../../scripts/app.js";
 import { setupCanvasUI } from "./canvas_ui.js";
 import { refreshDomUI, setupDomUI } from "./dom_ui.js";
+import { isVueNodesMode } from "./shared.js";
 
 const CONFIG = {
   minNodeHeight: 80,
@@ -22,8 +23,11 @@ app.registerExtension({
 
   async beforeRegisterNodeDef(nodeType, nodeData, app) {
     if (nodeData.name === "PromptPalette") {
-      setupCanvasUI(nodeType, CONFIG, app);
-      setupDomUI(nodeType, CONFIG, app);
+      if (isVueNodesMode()) {
+        setupDomUI(nodeType, CONFIG, app);
+      } else {
+        setupCanvasUI(nodeType, CONFIG, app);
+      }
     }
   },
 
@@ -32,6 +36,8 @@ app.registerExtension({
     if (nodeType !== "PromptPalette") {
       return;
     }
-    refreshDomUI(node, app);
+    if (isVueNodesMode()) {
+      refreshDomUI(node);
+    }
   },
 });

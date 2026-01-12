@@ -6,7 +6,6 @@ import {
   getWeightText,
   isEmptyLine,
   isLineCommented,
-  isVueNodesMode,
   parseWeight,
   setWidgetVisibility,
   toggleCommentOnLine,
@@ -18,10 +17,10 @@ const DOM_WIDGET_NAME = "promptpalette_ui";
 
 export function setupDomUI(nodeType, config, app) {
   // Hook once per node type to avoid double-wrapping prototype methods.
-  if (nodeType.prototype.__promptPaletteDomSetup) {
+  if (nodeType.prototype.__nodeTypeInitialized) {
     return;
   }
-  nodeType.prototype.__promptPaletteDomSetup = true;
+  nodeType.prototype.__nodeTypeInitialized = true;
   CONFIG = config;
 
   // Run the original handler to preserve other extensions.
@@ -30,14 +29,10 @@ export function setupDomUI(nodeType, config, app) {
     if (origOnNodeCreated) {
       origOnNodeCreated.apply(this, arguments);
     }
-    // Initialize DOM UI only for new nodes in Vue (Nodes 2.0) mode.
-    if (!isVueNodesMode()) {
+    if (this.__nodeInitialized) {
       return;
     }
-    if (this.__promptPaletteUiMode) {
-      return;
-    }
-    this.__promptPaletteUiMode = "dom";
+    this.__nodeInitialized = true;
     const textWidget = findTextWidget(this);
     if (!textWidget) return;
 
@@ -45,10 +40,8 @@ export function setupDomUI(nodeType, config, app) {
   };
 }
 
-export function refreshDomUI(node, app) {
-  // Sync DOM UI from existing node state when a graph is loaded.
+export function refreshDomUI(node) {
   if (!node || !node.__promptPaletteDomUI) return;
-  if (!isVueNodesMode()) return;
   node.__promptPaletteDomUI.refresh();
 }
 

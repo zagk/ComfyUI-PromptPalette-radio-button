@@ -7,7 +7,6 @@ import {
   getWeightText,
   isEmptyLine,
   isLineCommented,
-  isVueNodesMode,
   parseWeight,
   setWidgetVisibility,
   toggleCommentOnLine,
@@ -18,10 +17,10 @@ let colorCache = null;
 
 export function setupCanvasUI(nodeType, config, app) {
   // Hook once per node type to avoid double-wrapping prototype methods.
-  if (nodeType.prototype.__promptPaletteCanvasSetup) {
+  if (nodeType.prototype.__nodeTypeInitialized) {
     return;
   }
-  nodeType.prototype.__promptPaletteCanvasSetup = true;
+  nodeType.prototype.__nodeTypeInitialized = true;
   CONFIG = config;
 
   // Run the original handler to preserve other extensions.
@@ -30,14 +29,11 @@ export function setupCanvasUI(nodeType, config, app) {
     if (origOnNodeCreated) {
       origOnNodeCreated.apply(this, arguments);
     }
-    // Initialize Canvas UI only for new nodes in Nodes 1.0 mode.
-    if (isVueNodesMode()) {
+    // Initialize Canvas UI for new nodes (caller ensures Nodes 1.0 mode).
+    if (this.__nodeInitialized) {
       return;
     }
-    if (this.__promptPaletteUiMode) {
-      return;
-    }
-    this.__promptPaletteUiMode = "canvas";
+    this.__nodeInitialized = true;
     this.isEditMode = false;
     const textWidget = findTextWidget(this);
     if (textWidget) {
@@ -53,9 +49,6 @@ export function setupCanvasUI(nodeType, config, app) {
       origOnDrawForeground.call(this, ctx);
     }
     // Render the custom list UI in display mode.
-    if (isVueNodesMode()) {
-      return;
-    }
     const textWidget = findTextWidget(this);
     if (textWidget && !this.isEditMode) {
       drawCheckboxList(this, ctx, textWidget.value, app);
