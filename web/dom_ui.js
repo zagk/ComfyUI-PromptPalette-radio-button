@@ -70,7 +70,6 @@ export function refreshDomUI(node, app) {
   } else {
     setEditLayout(domState);
     updateEditButtonLabel(node, domState);
-    syncNodeSize(node);
     app.graph.setDirtyCanvas(true);
   }
 }
@@ -89,7 +88,6 @@ function setEditMode(node, textWidget, domState, app, isEditMode) {
     updateDomList(node, textWidget, domState, app);
   }
   updateEditButtonLabel(node, domState);
-  syncNodeSize(node);
   app.graph.setDirtyCanvas(true);
 }
 
@@ -215,7 +213,6 @@ function createDomState(node, textWidget, app) {
     empty,
     footer,
     toggleButton,
-    layoutHeight: CONFIG.minNodeHeight,
     widget: null,
   };
 
@@ -230,10 +227,7 @@ function createDomState(node, textWidget, app) {
     DOM_WIDGET_NAME,
     "promptpalette",
     container,
-    {
-      getMinHeight: () => domState.layoutHeight,
-      getMaxHeight: () => domState.layoutHeight,
-    },
+    {},
   );
   widget.serialize = false;
   widget.options.margin = 0;
@@ -255,8 +249,6 @@ function updateDomList(node, textWidget, domState, app) {
   if (text.trim() === "") {
     domState.list.style.display = "none";
     domState.empty.style.display = "flex";
-    updateDomLayoutHeight(node, domState, fallbackHeight);
-    syncNodeSize(node);
     app.graph.setDirtyCanvas(true);
     return;
   }
@@ -336,59 +328,12 @@ function updateDomList(node, textWidget, domState, app) {
     domState.list.append(row);
   });
 
-  updateDomLayoutHeight(node, domState, fallbackHeight);
-  syncNodeSize(node);
   app.graph.setDirtyCanvas(true);
 }
 
 function setEditLayout(domState) {
   domState.list.style.display = "none";
   domState.empty.style.display = "none";
-  domState.layoutHeight = CONFIG.domFooterHeight;
-}
-
-function syncNodeSize(node) {
-  if (!node || typeof node.computeSize !== "function") return;
-  const computedSize = node.computeSize();
-  if (!computedSize || computedSize.length < 2) return;
-  if (typeof node.setSize === "function") {
-    node.setSize([node.size[0], computedSize[1]]);
-  } else {
-    node.size[1] = computedSize[1];
-  }
-}
-
-function updateDomLayoutHeight(node, domState, fallbackHeight) {
-  // Measure DOM and set node height via CSS variable for Nodes 2.0.
-  const measuredHeight = getDomContentHeight(domState);
-  const nextHeight = Math.ceil(measuredHeight || fallbackHeight);
-  domState.layoutHeight = nextHeight;
-  applyDomNodeHeight(node, nextHeight);
-}
-
-function getDomContentHeight(domState) {
-  if (!domState?.container) return 0;
-  if (!domState.container.isConnected) return 0;
-  const rect = domState.container.getBoundingClientRect();
-  if (rect && rect.height) return rect.height;
-  return domState.container.scrollHeight || 0;
-}
-
-function applyDomNodeHeight(node, height) {
-  if (!isVueNodesMode()) return;
-  if (!node || typeof document === "undefined") return;
-  if (node.flags && node.flags.collapsed) return;
-  if (!Number.isFinite(height)) return;
-
-  const nodeId = node.id != null ? String(node.id) : "";
-  if (!nodeId) return;
-  const selectorId =
-    typeof CSS !== "undefined" && CSS.escape ? CSS.escape(nodeId) : nodeId;
-  const nodeEl = document.querySelector(`[data-node-id="${selectorId}"]`);
-  if (!nodeEl) return;
-
-  const nextHeight = Math.ceil(height);
-  nodeEl.style.setProperty("--node-height", `${nextHeight}px`);
 }
 
 function addStylesIfMissing() {
