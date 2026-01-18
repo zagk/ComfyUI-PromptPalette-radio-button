@@ -30,3 +30,12 @@ A custom node for ComfyUI that makes prompt editing easier by allowing phrase sw
 4. **Output**:
    - Selected phrases are output as comma-separated prompt text
      ![Output example](examples/example-03.png)
+
+## Changelog
+
+### v1.2.0
+- Support for ComfyUI Nodes 2.0
+- Major code refactoring
+
+### v1.1.0
+- Updated UI style
