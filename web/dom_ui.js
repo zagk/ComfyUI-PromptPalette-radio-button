@@ -388,7 +388,7 @@ class PromptPaletteRow {
     const weightButtonsContainer = this.#createWeightButtonsContainer();
     if (this.#line.weight !== 1.0) {
       weightButtonsContainer.append(
-        this.#createWeightLabel(this.#line.getWeightText()),
+        this.#createWeightLabel(this.#line.weightText),
       );
     }
     weightButtonsContainer.append(
@@ -427,7 +427,7 @@ class PromptPaletteRow {
 
   #createDisplayText() {
     const displayTextElement = document.createElement("span");
-    displayTextElement.textContent = this.#line.getDisplayText();
+    displayTextElement.textContent = this.#line.displayText;
     displayTextElement.style.flex = "1";
     displayTextElement.style.overflow = "hidden";
     displayTextElement.style.textOverflow = "ellipsis";

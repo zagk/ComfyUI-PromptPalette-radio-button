@@ -352,7 +352,7 @@ class PromptPaletteCanvasUI {
     ctx.rect(textX, y, availableWidth, CONFIG.lineHeight);
     ctx.clip();
 
-    ctx.fillText(line.getDisplayText(), textX, textBaseline);
+    ctx.fillText(line.displayText, textX, textBaseline);
 
     ctx.restore();
   }
@@ -361,7 +361,7 @@ class PromptPaletteCanvasUI {
     const nodeWidth = this.#node.size[0];
     if (line.isPhraseTextEmpty()) return;
 
-    const weightText = line.getWeightText();
+    const weightText = line.weightText;
     const checkboxCenter = y + CONFIG.checkboxSize / 2;
 
     let currentX = nodeWidth - CONFIG.sideNodePadding;
