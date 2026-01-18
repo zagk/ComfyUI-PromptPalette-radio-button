@@ -47,9 +47,9 @@ class PromptPaletteDomUI {
     DISPLAY: "display",
   });
   static EVENT = Object.freeze({
-    TOGGLE: "pp:toggle",
-    WEIGHT_PLUS: "pp:weight-plus",
-    WEIGHT_MINUS: "pp:weight-minus",
+    TOGGLE: "toggle",
+    WEIGHT_PLUS: "weight_plus",
+    WEIGHT_MINUS: "weight_minus",
   });
 
   constructor(node, textWidget, app) {
@@ -179,7 +179,7 @@ class PromptPaletteDomUI {
     );
     rootWidget.serialize = false;
     rootWidget.options.margin = 0;
-    this.updateEditButtonLabel();
+    this.updateToggleButtonLabel();
     return rootWidget;
   }
 
@@ -195,7 +195,7 @@ class PromptPaletteDomUI {
     this.updateTextWidgetVisibility();
     this.refreshNodeWidgets();
     this.callTextWidgetCallback();
-    this.updateEditButtonLabel();
+    this.updateToggleButtonLabel();
     if (this.mode === PromptPaletteDomUI.MODE.DISPLAY) {
       this.switchToDisplayModeUI();
     } else {
@@ -203,7 +203,7 @@ class PromptPaletteDomUI {
     }
   }
 
-  updateEditButtonLabel() {
+  updateToggleButtonLabel() {
     if (!this.toggleButton) return;
     this.toggleButton.textContent =
       this.mode === PromptPaletteDomUI.MODE.EDIT ? "Save" : "Edit";

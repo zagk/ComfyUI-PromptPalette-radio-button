@@ -16,6 +16,7 @@ const CONFIG = {
   spaceBetweenCheckboxAndText: 6,
   weightButtonSize: 16,
 };
+
 let colorCache = null;
 
 export function setupCanvasUI(nodeType, app) {
@@ -36,12 +37,14 @@ export function setupCanvasUI(nodeType, app) {
       return;
     }
     this.__nodeInitialized = true;
-    this.isEditMode = false;
+
     const textWidget = findTextWidget(this);
     if (textWidget) {
-      hideWidgetAndKeepSpace(textWidget);
-      addEditButton(this, textWidget, app);
-      setupClickHandler(this, textWidget, app);
+      this.__promptPaletteCanvasUI = new PromptPaletteCanvasUI(
+        this,
+        textWidget,
+        app,
+      );
     }
   };
 
@@ -51,272 +54,326 @@ export function setupCanvasUI(nodeType, app) {
       origOnDrawForeground.call(this, ctx);
     }
     // Render the custom list UI in display mode.
-    const textWidget = findTextWidget(this);
-    if (textWidget && !this.isEditMode) {
-      drawCheckboxList(this, ctx, textWidget.value, app);
-    }
+    this.__promptPaletteCanvasUI?.draw(ctx);
   };
 }
 
-// ========================================
-// UI Control
-// ========================================
-
-function addEditButton(node, textWidget, app) {
-  // Toggle between edit and display modes using the built-in widget button.
-  const textButton = node.addWidget("button", "Edit", "edit_text", () => {
-    node.isEditMode = !node.isEditMode;
-    if (node.isEditMode) {
-      showWidget(textWidget);
-    } else {
-      hideWidgetAndKeepSpace(textWidget);
-    }
-    textButton.name = node.isEditMode ? "Save" : "Edit";
-    app.graph.setDirtyCanvas(true);
+class PromptPaletteCanvasUI {
+  // ========================================
+  // Static Properties
+  // ========================================
+  static MODE = Object.freeze({
+    EDIT: "edit",
+    DISPLAY: "display",
+  });
+  static ACTION = Object.freeze({
+    TOGGLE: "toggle",
+    WEIGHT_PLUS: "weight_plus",
+    WEIGHT_MINUS: "weight_minus",
   });
 
-  const spacer = node.addWidget("text", "", "");
-  spacer.computeSize = () => [0, 6];
-  spacer.draw = () => {};
-  spacer.serialize = false;
-}
+  // ========================================
+  // Constructor
+  // ========================================
+  constructor(node, textWidget, app) {
+    this.node = node;
+    this.textWidget = textWidget;
+    this.app = app;
+    this.mode = PromptPaletteCanvasUI.MODE.DISPLAY;
+    this.clickableAreas = [];
+    this.toggleButton = null;
 
-function setupClickHandler(node, textWidget, app) {
-  // Route canvas clicks to the precomputed clickable areas.
-  node.clickableAreas = [];
+    this.hideTextWidget();
+    this.addToggleButton();
+    this.attachClickHandler();
+  }
 
-  node.findClickedArea = findClickedArea;
-  node.handleClickableAreaAction = handleClickableAreaAction;
+  // ========================================
+  // Public Methods
+  // ========================================
+  draw(ctx) {
+    if (this.mode !== PromptPaletteCanvasUI.MODE.DISPLAY) {
+      return;
+    }
+    this.drawCheckboxList(ctx);
+  }
 
-  node.onMouseDown = function (e, pos) {
-    if (this.isEditMode) return;
+  // ========================================
+  // Mode Management
+  // ========================================
+  changeMode(mode) {
+    this.mode = mode;
+    this.applyMode();
+  }
 
+  applyMode() {
+    this.updateTextWidgetVisibility();
+    this.updateToggleButtonLabel();
+    this.app.graph.setDirtyCanvas(true);
+  }
+
+  updateTextWidgetVisibility() {
+    if (!this.textWidget) return;
+    if (this.mode === PromptPaletteCanvasUI.MODE.EDIT) {
+      showWidget(this.textWidget);
+    } else {
+      hideWidgetAndKeepSpace(this.textWidget);
+    }
+  }
+
+  updateToggleButtonLabel() {
+    if (!this.toggleButton) return;
+    this.toggleButton.name =
+      this.mode === PromptPaletteCanvasUI.MODE.EDIT ? "Save" : "Edit";
+  }
+
+  // ========================================
+  // Widget Management
+  // ========================================
+  hideTextWidget() {
+    hideWidgetAndKeepSpace(this.textWidget);
+  }
+
+  addToggleButton() {
+    this.toggleButton = this.node.addWidget("button", "Edit", "edit_text", () => {
+      this.changeMode(
+        this.mode === PromptPaletteCanvasUI.MODE.EDIT
+          ? PromptPaletteCanvasUI.MODE.DISPLAY
+          : PromptPaletteCanvasUI.MODE.EDIT,
+      );
+    });
+
+    const spacer = this.node.addWidget("text", "", "");
+    spacer.computeSize = () => [0, 6];
+    spacer.draw = () => {};
+    spacer.serialize = false;
+  }
+
+  // ========================================
+  // Click Handling
+  // ========================================
+  attachClickHandler() {
+    const self = this;
+    this.node.onMouseDown = function (e, pos) {
+      self.handleMouseDown(pos);
+    };
+  }
+
+  handleMouseDown(pos) {
+    if (this.mode === PromptPaletteCanvasUI.MODE.EDIT) {
+      return;
+    }
     const clickedArea = this.findClickedArea(pos);
     if (clickedArea) {
-      this.handleClickableAreaAction(clickedArea, textWidget, app);
-    }
-  };
-}
-
-function findClickedArea(pos) {
-  const [x, y] = pos;
-  for (const area of this.clickableAreas || []) {
-    if (
-      x >= area.x &&
-      x <= area.x + area.w &&
-      y >= area.y &&
-      y <= area.y + area.h
-    ) {
-      return area;
+      this.handleClickableAreaAction(clickedArea);
     }
   }
-  return null;
-}
 
-function handleClickableAreaAction(area, textWidget, app) {
-  switch (area.action) {
-    case "toggle": {
-      const textLines = textWidget.value.split("\n");
-      if (area.lineIndex >= 0 && area.lineIndex < textLines.length) {
-        const line = new Line(textLines[area.lineIndex]);
-        line.toggleComment();
-        textLines[area.lineIndex] = line.buildText();
-        textWidget.value = textLines.join("\n");
-        app.graph.setDirtyCanvas(true);
+  findClickedArea(pos) {
+    const [x, y] = pos;
+    for (const area of this.clickableAreas) {
+      if (
+        x >= area.x &&
+        x <= area.x + area.w &&
+        y >= area.y &&
+        y <= area.y + area.h
+      ) {
+        return area;
       }
-      break;
     }
-    case "weight_plus":
-      adjustWeightInText(textWidget, area.lineIndex, 0.1, app);
-      break;
-    case "weight_minus":
-      adjustWeightInText(textWidget, area.lineIndex, -0.1, app);
-      break;
+    return null;
   }
-}
 
-function adjustWeightInText(textWidget, lineIndex, delta, app) {
-  const textLines = textWidget.value.split("\n");
-  if (lineIndex >= 0 && lineIndex < textLines.length) {
+  handleClickableAreaAction(area) {
+    switch (area.action) {
+      case PromptPaletteCanvasUI.ACTION.TOGGLE:
+        this.toggleLine(area.lineIndex);
+        break;
+      case PromptPaletteCanvasUI.ACTION.WEIGHT_PLUS:
+        this.adjustLineWeight(area.lineIndex, 0.1);
+        break;
+      case PromptPaletteCanvasUI.ACTION.WEIGHT_MINUS:
+        this.adjustLineWeight(area.lineIndex, -0.1);
+        break;
+    }
+  }
+
+  // ========================================
+  // Data Operations
+  // ========================================
+  toggleLine(lineIndex) {
+    const textLines = this.textWidget.value.split("\n");
+    if (lineIndex < 0 || lineIndex >= textLines.length) return;
+
+    const line = new Line(textLines[lineIndex]);
+    line.toggleComment();
+    textLines[lineIndex] = line.buildText();
+    this.textWidget.value = textLines.join("\n");
+    this.app.graph.setDirtyCanvas(true);
+  }
+
+  adjustLineWeight(lineIndex, delta) {
+    const textLines = this.textWidget.value.split("\n");
+    if (lineIndex < 0 || lineIndex >= textLines.length) return;
+
     const line = new Line(textLines[lineIndex]);
     line.adjustWeight(delta);
     textLines[lineIndex] = line.buildText();
-    textWidget.value = textLines.join("\n");
-    app.graph.setDirtyCanvas(true);
-  }
-}
-
-// ========================================
-// Drawing
-// ========================================
-
-function drawCheckboxList(node, ctx, text, app) {
-  // Draw the list and adjust node height to fit content.
-  if (node.flags && node.flags.collapsed) {
-    return;
+    this.textWidget.value = textLines.join("\n");
+    this.app.graph.setDirtyCanvas(true);
   }
 
-  const lines = text.split("\n");
-  const textHeight = calculateNodeHeight(lines.length, CONFIG);
+  // ========================================
+  // Drawing
+  // ========================================
+  drawCheckboxList(ctx) {
+    if (this.node.flags && this.node.flags.collapsed) {
+      return;
+    }
 
-  if (node.size[1] < textHeight) {
-    node.size[1] = textHeight;
-    app.graph.setDirtyCanvas(true);
+    const text = this.textWidget.value || "";
+    const lines = text.split("\n");
+    const textHeight = calculateNodeHeight(lines.length, CONFIG);
+
+    if (this.node.size[1] < textHeight) {
+      this.node.size[1] = textHeight;
+      this.app.graph.setDirtyCanvas(true);
+    }
+
+    ctx.font = "14px monospace";
+    ctx.textAlign = "left";
+
+    if (text.trim() !== "") {
+      this.drawCheckboxItems(ctx, lines);
+    } else {
+      this.drawEmptyMessage(ctx);
+    }
   }
 
-  ctx.font = "14px monospace";
-  ctx.textAlign = "left";
-  if (text.trim() !== "") {
-    drawCheckboxItems(ctx, lines, node);
-  } else {
+  drawEmptyMessage(ctx) {
     ctx.fillStyle = getColors().inactiveTextColor;
     ctx.textAlign = "center";
-    ctx.fillText("No Text", node.size[0] / 2, node.size[1] / 2);
-  }
-}
-
-function drawCheckboxItems(ctx, lines, node) {
-  if (node) {
-    node.clickableAreas = [];
+    ctx.fillText("No Text", this.node.size[0] / 2, this.node.size[1] / 2);
   }
 
-  lines.forEach((lineText, index) => {
-    const line = new Line(lineText);
-    if (line.isPhraseTextEmpty()) return;
+  drawCheckboxItems(ctx, lines) {
+    this.clickableAreas = [];
 
-    const y = CONFIG.topNodePadding + index * CONFIG.lineHeight;
-    const isCommented = line.isCommented;
+    lines.forEach((lineText, index) => {
+      const line = new Line(lineText);
+      if (line.isPhraseTextEmpty()) return;
 
-    drawCheckbox(ctx, y, isCommented, node, index);
+      const y = CONFIG.topNodePadding + index * CONFIG.lineHeight;
+      const isCommented = line.isCommented;
 
-    drawDisplayText(ctx, line, y, isCommented);
+      this.drawCheckbox(ctx, y, isCommented, index);
+      this.drawDisplayText(ctx, line, y, isCommented);
+      this.drawWeightControls(ctx, y, line, isCommented, index);
+    });
+  }
 
-    drawWeightControls(ctx, y, line, isCommented, node, index);
-  });
-}
+  drawCheckbox(ctx, y, isCommented, lineIndex) {
+    const checkboxX = CONFIG.sideNodePadding;
+    const checkboxY = y;
+    const checkboxW = CONFIG.checkboxSize;
+    const checkboxH = CONFIG.checkboxSize;
 
-function drawCheckbox(ctx, y, isCommented, node, lineIndex) {
-  const checkboxX = CONFIG.sideNodePadding;
-  const checkboxY = y;
-  const checkboxW = CONFIG.checkboxSize;
-  const checkboxH = CONFIG.checkboxSize;
-
-  if (node) {
-    node.clickableAreas.push({
+    this.clickableAreas.push({
       x: checkboxX,
       y: checkboxY,
       w: checkboxW,
       h: checkboxH,
       type: "checkbox",
       lineIndex: lineIndex,
-      action: "toggle",
+      action: PromptPaletteCanvasUI.ACTION.TOGGLE,
     });
+
+    if (isCommented) {
+      ctx.strokeStyle = getColors().checkboxBorderColor;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(checkboxX, checkboxY, checkboxW, checkboxH, 4);
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = getColors().checkboxFillColor;
+      ctx.beginPath();
+      ctx.roundRect(checkboxX, checkboxY, checkboxW, checkboxH, 4);
+      ctx.fill();
+
+      ctx.strokeStyle = getColors().checkboxSymbolColor;
+      ctx.lineWidth = 2;
+      const centerX = checkboxX + checkboxW / 2;
+      const centerY = checkboxY + checkboxH / 2;
+      const checkSize = checkboxW * 0.4;
+      ctx.beginPath();
+      ctx.moveTo(centerX - checkSize * 0.7, centerY + checkSize * 0.0);
+      ctx.lineTo(centerX - checkSize * 0.3, centerY + checkSize * 0.5);
+      ctx.lineTo(centerX + checkSize * 0.7, centerY - checkSize * 0.5);
+      ctx.stroke();
+    }
   }
 
-  if (isCommented) {
-    ctx.strokeStyle = getColors().checkboxBorderColor;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.roundRect(checkboxX, checkboxY, checkboxW, checkboxH, 4);
-    ctx.stroke();
-  } else {
-    ctx.fillStyle = getColors().checkboxFillColor;
-    ctx.beginPath();
-    ctx.roundRect(checkboxX, checkboxY, checkboxW, checkboxH, 4);
-    ctx.fill();
-
-    ctx.strokeStyle = getColors().checkboxSymbolColor;
-    ctx.lineWidth = 2;
-    const centerX = checkboxX + checkboxW / 2;
-    const centerY = checkboxY + checkboxH / 2;
-    const checkSize = checkboxW * 0.4;
-    ctx.beginPath();
-    ctx.moveTo(centerX - checkSize * 0.7, centerY + checkSize * 0.0);
-    ctx.lineTo(centerX - checkSize * 0.3, centerY + checkSize * 0.5);
-    ctx.lineTo(centerX + checkSize * 0.7, centerY - checkSize * 0.5);
-    ctx.stroke();
-  }
-}
-
-function drawDisplayText(ctx, line, y, isCommented) {
-  const colors = getColors();
-  ctx.fillStyle = isCommented
-    ? colors.inactiveTextColor
-    : colors.defaultTextColor;
-  ctx.textAlign = "left";
-
-  const isBold = line.weight !== 1.0;
-
-  ctx.font = isBold
-    ? `bold ${CONFIG.fontSize}px sans-serif`
-    : `${CONFIG.fontSize}px sans-serif`;
-
-  const checkboxCenter = y + CONFIG.checkboxSize / 2;
-  const textBaseline = checkboxCenter + CONFIG.fontSize * 0.35;
-
-  ctx.fillText(
-    line.getDisplayText(),
-    CONFIG.sideNodePadding +
-      CONFIG.checkboxSize +
-      CONFIG.spaceBetweenCheckboxAndText,
-    textBaseline,
-  );
-}
-
-function drawWeightControls(ctx, y, line, isCommented, node, lineIndex) {
-  // Draw +/- buttons and optional weight label.
-  const nodeWidth = node.size[0];
-  if (line.isPhraseTextEmpty()) return;
-
-  const weightText = line.getWeightText();
-  const checkboxCenter = y + CONFIG.checkboxSize / 2;
-
-  let currentX = nodeWidth - CONFIG.sideNodePadding;
-
-  const plusButtonX = currentX - CONFIG.weightButtonSize;
-  const plusButtonY = y;
-  drawWeightButton(
-    ctx,
-    plusButtonX,
-    plusButtonY,
-    "+",
-    node,
-    lineIndex,
-    "weight_plus",
-  );
-  currentX = plusButtonX - 4;
-
-  const minusButtonX = currentX - CONFIG.weightButtonSize;
-  const minusButtonY = y;
-  drawWeightButton(
-    ctx,
-    minusButtonX,
-    minusButtonY,
-    "-",
-    node,
-    lineIndex,
-    "weight_minus",
-  );
-  currentX = minusButtonX - 4;
-
-  if (line.weight !== 1.0) {
-    const textColors = getColors();
+  drawDisplayText(ctx, line, y, isCommented) {
+    const colors = getColors();
     ctx.fillStyle = isCommented
-      ? textColors.inactiveTextColor
-      : textColors.defaultTextColor;
-    ctx.textAlign = "right";
-    ctx.font = "12px monospace";
-    const textBaseline = checkboxCenter + CONFIG.fontSize * 0.35;
-    ctx.fillText(weightText, currentX - 2, textBaseline);
+      ? colors.inactiveTextColor
+      : colors.defaultTextColor;
     ctx.textAlign = "left";
+
+    const isBold = line.weight !== 1.0;
+
+    ctx.font = isBold
+      ? `bold ${CONFIG.fontSize}px sans-serif`
+      : `${CONFIG.fontSize}px sans-serif`;
+
+    const checkboxCenter = y + CONFIG.checkboxSize / 2;
+    const textBaseline = checkboxCenter + CONFIG.fontSize * 0.35;
+
+    ctx.fillText(
+      line.getDisplayText(),
+      CONFIG.sideNodePadding +
+        CONFIG.checkboxSize +
+        CONFIG.spaceBetweenCheckboxAndText,
+      textBaseline,
+    );
   }
-}
 
-function drawWeightButton(ctx, x, y, symbol, node, lineIndex, action) {
-  const buttonSize = CONFIG.weightButtonSize;
+  drawWeightControls(ctx, y, line, isCommented, lineIndex) {
+    const nodeWidth = this.node.size[0];
+    if (line.isPhraseTextEmpty()) return;
 
-  if (node) {
-    node.clickableAreas.push({
+    const weightText = line.getWeightText();
+    const checkboxCenter = y + CONFIG.checkboxSize / 2;
+
+    let currentX = nodeWidth - CONFIG.sideNodePadding;
+
+    const plusButtonX = currentX - CONFIG.weightButtonSize;
+    const plusButtonY = y;
+    this.drawWeightButton(ctx, plusButtonX, plusButtonY, "+", lineIndex, PromptPaletteCanvasUI.ACTION.WEIGHT_PLUS);
+    currentX = plusButtonX - 4;
+
+    const minusButtonX = currentX - CONFIG.weightButtonSize;
+    const minusButtonY = y;
+    this.drawWeightButton(ctx, minusButtonX, minusButtonY, "-", lineIndex, PromptPaletteCanvasUI.ACTION.WEIGHT_MINUS);
+    currentX = minusButtonX - 4;
+
+    if (line.weight !== 1.0) {
+      const textColors = getColors();
+      ctx.fillStyle = isCommented
+        ? textColors.inactiveTextColor
+        : textColors.defaultTextColor;
+      ctx.textAlign = "right";
+      ctx.font = "12px monospace";
+      const textBaseline = checkboxCenter + CONFIG.fontSize * 0.35;
+      ctx.fillText(weightText, currentX - 2, textBaseline);
+      ctx.textAlign = "left";
+    }
+  }
+
+  drawWeightButton(ctx, x, y, symbol, lineIndex, action) {
+    const buttonSize = CONFIG.weightButtonSize;
+
+    this.clickableAreas.push({
       x: x,
       y: y,
       w: buttonSize,
@@ -324,32 +381,31 @@ function drawWeightButton(ctx, x, y, symbol, node, lineIndex, action) {
       type: "weight_button",
       lineIndex: lineIndex,
       action: action,
-      node: node,
     });
+
+    ctx.fillStyle = getColors().weightButtonFillColor;
+    ctx.beginPath();
+    ctx.roundRect(x, y, buttonSize, buttonSize, 4);
+    ctx.fill();
+
+    ctx.strokeStyle = getColors().weightButtonSymbolColor;
+    ctx.lineWidth = 2;
+    const centerX = x + buttonSize / 2;
+    const centerY = y + buttonSize / 2;
+    const symbolSize = 6;
+
+    ctx.beginPath();
+    if (symbol === "+") {
+      ctx.moveTo(centerX - symbolSize / 2, centerY);
+      ctx.lineTo(centerX + symbolSize / 2, centerY);
+      ctx.moveTo(centerX, centerY - symbolSize / 2);
+      ctx.lineTo(centerX, centerY + symbolSize / 2);
+    } else if (symbol === "-") {
+      ctx.moveTo(centerX - symbolSize / 2, centerY);
+      ctx.lineTo(centerX + symbolSize / 2, centerY);
+    }
+    ctx.stroke();
   }
-
-  ctx.fillStyle = getColors().weightButtonFillColor;
-  ctx.beginPath();
-  ctx.roundRect(x, y, buttonSize, buttonSize, 4);
-  ctx.fill();
-
-  ctx.strokeStyle = getColors().weightButtonSymbolColor;
-  ctx.lineWidth = 2;
-  const centerX = x + buttonSize / 2;
-  const centerY = y + buttonSize / 2;
-  const symbolSize = 6;
-
-  ctx.beginPath();
-  if (symbol === "+") {
-    ctx.moveTo(centerX - symbolSize / 2, centerY);
-    ctx.lineTo(centerX + symbolSize / 2, centerY);
-    ctx.moveTo(centerX, centerY - symbolSize / 2);
-    ctx.lineTo(centerX, centerY + symbolSize / 2);
-  } else if (symbol === "-") {
-    ctx.moveTo(centerX - symbolSize / 2, centerY);
-    ctx.lineTo(centerX + symbolSize / 2, centerY);
-  }
-  ctx.stroke();
 }
 
 // ========================================
