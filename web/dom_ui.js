@@ -2,7 +2,7 @@ import { findTextWidget, hideWidget, showWidget } from "./ui_utils.js";
 import { Line } from "./line.js";
 
 const CONFIG = {
-  lineHeight: 26,
+  lineHeight: 24,
   fontSize: 14,
   checkboxSize: 18,
   checkboxMarginRight: 8,
