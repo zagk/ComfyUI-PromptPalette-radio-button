@@ -4,35 +4,43 @@ const WEIGHT_RE = /\(([^:]+):(\d+\.?\d*)\)/;
 const WEIGHT_RE_GLOBAL = /\(([^:]+):(\d+\.?\d*)\)/g;
 
 export class Line {
+  #isCommented;
+  #textWithoutCommentPrefix;
+  #beforeTrailingComment;
+  #trailingComment;
   #weight;
 
-  constructor(raw) {
-    this.raw = raw ?? "";
-    const trimmed = this.raw.trim();
-    this.isCommented = trimmed.startsWith("//");
+  constructor(rawText = "") {
+    this.#isCommented = rawText.trim().startsWith("//");
 
-    const match = this.raw.match(COMMENT_PREFIX_AND_TEXT_RE);
-    this.textWithoutCommentPrefix = match ? match[2] : this.raw;
+    const match = rawText.match(COMMENT_PREFIX_AND_TEXT_RE);
+    this.#textWithoutCommentPrefix = match ? match[2] : rawText;
 
-    const inlineCommentSearchText = this.textWithoutCommentPrefix;
-    const inlineCommentIndex = inlineCommentSearchText.indexOf("//");
-    this.hasInlineComment = inlineCommentIndex !== -1;
-    this.beforeInlineComment = this.hasInlineComment
-      ? inlineCommentSearchText.substring(0, inlineCommentIndex).trim()
-      : inlineCommentSearchText;
-    this.inlineComment = this.hasInlineComment
-      ? inlineCommentSearchText.substring(inlineCommentIndex)
-      : "";
-    this.#weight = this.#parseWeight(this.beforeInlineComment);
+    const searchText = this.#textWithoutCommentPrefix;
+    const trailingCommentIndex = searchText.indexOf("//");
+    if (trailingCommentIndex !== -1) {
+      this.#beforeTrailingComment = searchText
+        .substring(0, trailingCommentIndex)
+        .trim();
+      this.#trailingComment = searchText.substring(trailingCommentIndex);
+    } else {
+      this.#beforeTrailingComment = searchText;
+      this.#trailingComment = "";
+    }
+    this.#weight = this.#parseWeight(this.#beforeTrailingComment);
+  }
+
+  get isCommented() {
+    return this.#isCommented;
   }
 
   toggleComment() {
-    this.isCommented = !this.isCommented;
+    this.#isCommented = !this.#isCommented;
   }
 
   get displayText() {
     // Inline comments are preserved in the display text
-    let text = this.textWithoutCommentPrefix;
+    let text = this.#textWithoutCommentPrefix;
     text = text.replace(WEIGHT_RE_GLOBAL, "$1");
     if (text.trim().endsWith(",")) {
       text = text.substring(0, text.lastIndexOf(","));
@@ -41,7 +49,7 @@ export class Line {
   }
 
   get phraseText() {
-    let text = this.beforeInlineComment;
+    let text = this.#beforeTrailingComment;
     text = text.replace(WEIGHT_RE_GLOBAL, "$1");
     if (text.trim().endsWith(",")) {
       text = text.substring(0, text.lastIndexOf(","));
@@ -81,15 +89,16 @@ export class Line {
 
   buildText() {
     const weightedText = this.#buildWeightedText(
-      this.beforeInlineComment,
+      this.#beforeTrailingComment,
       this.#weight,
     );
-    const textWithInlineComment = this.hasInlineComment
-      ? `${weightedText} ${this.inlineComment}`
+    const hasTrailingComment = this.#trailingComment !== "";
+    const textWithTrailingComment = hasTrailingComment
+      ? `${weightedText} ${this.#trailingComment}`
       : weightedText;
-    return this.isCommented
-      ? COMMENT_PREFIX + textWithInlineComment
-      : textWithInlineComment;
+    return this.#isCommented
+      ? COMMENT_PREFIX + textWithTrailingComment
+      : textWithTrailingComment;
   }
 
   #parseWeight(text) {
