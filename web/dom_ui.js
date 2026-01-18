@@ -5,7 +5,7 @@ const CONFIG = {
   lineHeight: 26,
   fontSize: 14,
   checkboxSize: 18,
-  spaceBetweenCheckboxAndText: 8,
+  checkboxMarginRight: 8,
   weightButtonSize: 18,
   weightLabelWidth: 30,
 };
@@ -364,21 +364,20 @@ class PromptPaletteRow {
   // DOM Element Creation
   // ========================================
   #createElement() {
-    if (this.#line.isPhraseTextEmpty()) {
+    if (!this.#line.hasPhraseText()) {
       return this.#createEmptyRow();
     }
-    const isCommentedOut = this.#line.isCommentedOut;
     const row = document.createElement("div");
     row.style.height = `${CONFIG.lineHeight}px`;
     row.style.display = "flex";
     row.style.alignItems = "center";
-    row.style.gap = `${CONFIG.spaceBetweenCheckboxAndText}px`;
-    if (isCommentedOut) {
+    row.style.gap = `${CONFIG.checkboxMarginRight}px`;
+    if (this.#line.commentedOut) {
       row.style.opacity = "0.5";
     }
 
     // Build Checkbox + Display Text.
-    row.append(this.#createCheckbox(isCommentedOut));
+    row.append(this.#createCheckbox());
     const displayTextElement = this.#createDisplayText();
     if (this.#line.weight !== 1.0) {
       displayTextElement.style.fontWeight = "bold";
@@ -400,7 +399,7 @@ class PromptPaletteRow {
     return row;
   }
 
-  #createCheckbox(isCommentedOut) {
+  #createCheckbox() {
     const checkbox = document.createElement("button");
     checkbox.type = "button";
     checkbox.style.width = `${CONFIG.checkboxSize}px`;
@@ -415,7 +414,7 @@ class PromptPaletteRow {
     checkbox.style.alignItems = "center";
     checkbox.style.justifyContent = "center";
     checkbox.style.cursor = "pointer";
-    if (!isCommentedOut) {
+    if (!this.#line.commentedOut) {
       checkbox.textContent = "\u2713";
       checkbox.style.background = "var(--input-text)";
     }
@@ -485,7 +484,7 @@ class PromptPaletteRow {
     emptyRow.style.height = `${CONFIG.lineHeight}px`;
     emptyRow.style.display = "flex";
     emptyRow.style.alignItems = "center";
-    emptyRow.style.gap = `${CONFIG.spaceBetweenCheckboxAndText}px`;
+    emptyRow.style.gap = `${CONFIG.checkboxMarginRight}px`;
     emptyRow.style.pointerEvents = "none";
     return emptyRow;
   }

@@ -13,9 +13,9 @@ const CONFIG = {
   lineHeight: 24,
   fontSize: 13,
   checkboxSize: 16,
-  checkboxAndTextGap: 6,
+  checkboxMarginRight: 6,
   weightLabelWidth: 34,
-  weightLabelAndButtonGap: 2,
+  weightLabelMarginRight: 2,
   weightButtonSize: 16,
   weightButtonGap: 4,
 };
@@ -265,18 +265,17 @@ class PromptPaletteCanvasUI {
 
     lines.forEach((lineText, index) => {
       const line = new Line(lineText);
-      if (line.isPhraseTextEmpty()) return;
+      if (!line.hasPhraseText()) return;
 
       const y = CONFIG.topNodePadding + index * CONFIG.lineHeight;
-      const isCommentedOut = line.isCommentedOut;
 
-      this.#drawCheckbox(ctx, y, isCommentedOut, index);
-      this.#drawDisplayText(ctx, line, y, isCommentedOut);
-      this.#drawWeightControls(ctx, y, line, isCommentedOut, index);
+      this.#drawCheckbox(ctx, line, y, index);
+      this.#drawDisplayText(ctx, line, y);
+      this.#drawWeightControls(ctx, line, y, index);
     });
   }
 
-  #drawCheckbox(ctx, y, isCommentedOut, lineIndex) {
+  #drawCheckbox(ctx, line, y, index) {
     const checkboxX = CONFIG.sideNodePadding;
     const checkboxY = y;
     const checkboxW = CONFIG.checkboxSize;
@@ -288,11 +287,11 @@ class PromptPaletteCanvasUI {
       w: checkboxW,
       h: checkboxH,
       type: "checkbox",
-      lineIndex: lineIndex,
+      lineIndex: index,
       action: PromptPaletteCanvasUI.ACTION.TOGGLE,
     });
 
-    if (isCommentedOut) {
+    if (line.commentedOut) {
       ctx.strokeStyle = getColors().checkboxBorderColor;
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -317,9 +316,9 @@ class PromptPaletteCanvasUI {
     }
   }
 
-  #drawDisplayText(ctx, line, y, isCommentedOut) {
+  #drawDisplayText(ctx, line, y) {
     const colors = getColors();
-    ctx.fillStyle = isCommentedOut
+    ctx.fillStyle = line.commentedOut
       ? colors.inactiveTextColor
       : colors.defaultTextColor;
     ctx.textAlign = "left";
@@ -334,12 +333,12 @@ class PromptPaletteCanvasUI {
     const textBaseline = checkboxCenter + CONFIG.fontSize * 0.35;
 
     const textX =
-      CONFIG.sideNodePadding + CONFIG.checkboxSize + CONFIG.checkboxAndTextGap;
+      CONFIG.sideNodePadding + CONFIG.checkboxSize + CONFIG.checkboxMarginRight;
 
     // Calculate width of right-side elements
     const rightElementsWidth =
       CONFIG.weightLabelWidth +
-      CONFIG.weightLabelAndButtonGap +
+      CONFIG.weightLabelMarginRight +
       CONFIG.weightButtonSize +
       CONFIG.weightButtonGap +
       CONFIG.weightButtonSize +
@@ -357,9 +356,9 @@ class PromptPaletteCanvasUI {
     ctx.restore();
   }
 
-  #drawWeightControls(ctx, y, line, isCommentedOut, lineIndex) {
+  #drawWeightControls(ctx, line, y, index) {
     const nodeWidth = this.#node.size[0];
-    if (line.isPhraseTextEmpty()) return;
+    if (!line.hasPhraseText()) return;
 
     const weightText = line.weightText;
     const checkboxCenter = y + CONFIG.checkboxSize / 2;
@@ -373,7 +372,7 @@ class PromptPaletteCanvasUI {
       plusButtonX,
       plusButtonY,
       "+",
-      lineIndex,
+      index,
       PromptPaletteCanvasUI.ACTION.WEIGHT_PLUS,
     );
     currentX = plusButtonX - CONFIG.weightButtonGap;
@@ -385,14 +384,14 @@ class PromptPaletteCanvasUI {
       minusButtonX,
       minusButtonY,
       "-",
-      lineIndex,
+      index,
       PromptPaletteCanvasUI.ACTION.WEIGHT_MINUS,
     );
     currentX = minusButtonX - CONFIG.weightButtonGap;
 
     if (line.weight !== 1.0) {
       const textColors = getColors();
-      ctx.fillStyle = isCommentedOut
+      ctx.fillStyle = line.commentedOut
         ? textColors.inactiveTextColor
         : textColors.defaultTextColor;
       ctx.textAlign = "right";
@@ -400,7 +399,7 @@ class PromptPaletteCanvasUI {
       const textBaseline = checkboxCenter + CONFIG.fontSize * 0.35;
       ctx.fillText(
         weightText,
-        currentX - CONFIG.weightLabelAndButtonGap,
+        currentX - CONFIG.weightLabelMarginRight,
         textBaseline,
       );
       ctx.textAlign = "left";

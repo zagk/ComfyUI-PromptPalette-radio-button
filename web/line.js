@@ -1,16 +1,18 @@
 const COMMENT_PREFIX = "// ";
 const LINE_RE = /^(\s*\/\/\s*)?(.*?)(\/\/.*)?$/;
 const WEIGHT_RE = /^\((.+):(\d+\.?\d*)\)$/;
+const MIN_WEIGHT = 0.1;
+const MAX_WEIGHT = 2.0;
 
 export class Line {
-  #isCommentedOut;
+  #commentedOut;
   #phraseText;
   #trailingComment;
   #weight;
 
   constructor(rawText = "") {
     const [, commentPrefix, body, trailingComment] = rawText.match(LINE_RE);
-    this.#isCommentedOut = !!commentPrefix;
+    this.#commentedOut = !!commentPrefix;
     this.#trailingComment = trailingComment ?? "";
 
     const { phrase, weight } = this.#parseWeightedText(body);
@@ -27,12 +29,12 @@ export class Line {
     return { phrase: cleanText, weight: 1.0 };
   }
 
-  get isCommentedOut() {
-    return this.#isCommentedOut;
+  get commentedOut() {
+    return this.#commentedOut;
   }
 
   toggleCommentedOut() {
-    this.#isCommentedOut = !this.#isCommentedOut;
+    this.#commentedOut = !this.#commentedOut;
   }
 
   get displayText() {
@@ -42,8 +44,8 @@ export class Line {
     return this.#phraseText;
   }
 
-  isPhraseTextEmpty() {
-    return this.#phraseText.trim() === "";
+  hasPhraseText() {
+    return this.#phraseText.trim() !== "";
   }
 
   get weightText() {
@@ -62,27 +64,21 @@ export class Line {
   }
 
   adjustWeight(delta) {
-    const minWeight = 0.1;
-    const maxWeight = 2.0;
     const newWeight = this.#weight + delta;
-    const clampedWeight = Math.min(maxWeight, Math.max(minWeight, newWeight));
+    const clampedWeight = Math.min(MAX_WEIGHT, Math.max(MIN_WEIGHT, newWeight));
     this.#weight = Math.round(clampedWeight * 10) / 10;
   }
 
   buildText() {
-    const weightedText = this.#buildWeightedText(this.#phraseText, this.#weight);
+    const weightedText =
+      this.#weight === 1.0
+        ? this.#phraseText
+        : `(${this.#phraseText}:${this.#weight})`;
     const textWithTrailingComment = this.#trailingComment
       ? `${weightedText} ${this.#trailingComment}`
       : weightedText;
-    return this.#isCommentedOut
+    return this.#commentedOut
       ? COMMENT_PREFIX + textWithTrailingComment
       : textWithTrailingComment;
-  }
-
-  #buildWeightedText(phraseText, weight) {
-    if (weight === 1.0) {
-      return phraseText;
-    }
-    return `(${phraseText}:${weight})`;
   }
 }
