@@ -52,7 +52,14 @@ export class Line {
   }
 
   getWeightText() {
-    return this.weight.toFixed(1);
+    // Round to 2 decimal places first
+    const rounded = Math.round(this.weight * 100) / 100;
+    // If the value has a non-zero second decimal place, show 2 decimals
+    if (rounded * 10 !== Math.floor(rounded * 10)) {
+      return rounded.toFixed(2);
+    }
+    // Otherwise show 1 decimal
+    return rounded.toFixed(1);
   }
 
   setWeight(weight) {

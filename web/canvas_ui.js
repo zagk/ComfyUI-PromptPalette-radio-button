@@ -13,8 +13,11 @@ const CONFIG = {
   lineHeight: 24,
   fontSize: 13,
   checkboxSize: 16,
-  spaceBetweenCheckboxAndText: 6,
+  checkboxAndTextGap: 6,
+  weightLabelWidth: 34,
+  weightLabelAndButtonGap: 2,
   weightButtonSize: 16,
+  weightButtonGap: 4,
 };
 
 let colorCache = null;
@@ -332,13 +335,28 @@ class PromptPaletteCanvasUI {
     const checkboxCenter = y + CONFIG.checkboxSize / 2;
     const textBaseline = checkboxCenter + CONFIG.fontSize * 0.35;
 
-    ctx.fillText(
-      line.getDisplayText(),
-      CONFIG.sideNodePadding +
-        CONFIG.checkboxSize +
-        CONFIG.spaceBetweenCheckboxAndText,
-      textBaseline,
-    );
+    const textX =
+      CONFIG.sideNodePadding + CONFIG.checkboxSize + CONFIG.checkboxAndTextGap;
+
+    // Calculate width of right-side elements
+    const rightElementsWidth =
+      CONFIG.weightLabelWidth +
+      CONFIG.weightLabelAndButtonGap +
+      CONFIG.weightButtonSize +
+      CONFIG.weightButtonGap +
+      CONFIG.weightButtonSize +
+      CONFIG.sideNodePadding;
+    const availableWidth = this.node.size[0] - textX - rightElementsWidth;
+
+    // Clip text to available width
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(textX, y, availableWidth, CONFIG.lineHeight);
+    ctx.clip();
+
+    ctx.fillText(line.getDisplayText(), textX, textBaseline);
+
+    ctx.restore();
   }
 
   drawWeightControls(ctx, y, line, isCommented, lineIndex) {
@@ -360,7 +378,7 @@ class PromptPaletteCanvasUI {
       lineIndex,
       PromptPaletteCanvasUI.ACTION.WEIGHT_PLUS,
     );
-    currentX = plusButtonX - 4;
+    currentX = plusButtonX - CONFIG.weightButtonGap;
 
     const minusButtonX = currentX - CONFIG.weightButtonSize;
     const minusButtonY = y;
@@ -372,7 +390,7 @@ class PromptPaletteCanvasUI {
       lineIndex,
       PromptPaletteCanvasUI.ACTION.WEIGHT_MINUS,
     );
-    currentX = minusButtonX - 4;
+    currentX = minusButtonX - CONFIG.weightButtonGap;
 
     if (line.weight !== 1.0) {
       const textColors = getColors();
@@ -382,7 +400,11 @@ class PromptPaletteCanvasUI {
       ctx.textAlign = "right";
       ctx.font = `${CONFIG.fontSize}px sans-serif`;
       const textBaseline = checkboxCenter + CONFIG.fontSize * 0.35;
-      ctx.fillText(weightText, currentX - 2, textBaseline);
+      ctx.fillText(
+        weightText,
+        currentX - CONFIG.weightLabelAndButtonGap,
+        textBaseline,
+      );
       ctx.textAlign = "left";
     }
   }
