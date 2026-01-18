@@ -122,18 +122,50 @@ ComfyUIのカスタムノード構成に従う。
 ### ComfyUIテーマ連携
 
 - 文字色やボタン色、チェックボックス色をComfyUIテーマ色に合わせる
-  - 表示用テキスト: --input-text (透明度: 0)
-  - チェックボックスがオフの表示用テキスト: --input-text (透明度: 0.4)
-  - チェックボックスの枠線: --input-text (透明度: 0.5)
-  - チェックボックスの塗り(オン状態): --input-text
-  - チェックボックスの塗り(オフ状態): 塗りなし
-  - チェックボックスのチェック: --comfy-input-bg
-  - ウェイトボタンの塗り: --comfy-input-bg
-  - ウェイトボタンの±: --input-text (透明度: 0.6)
+  - ライト/ダーク両テーマに対応
 - ComfyUI のCSS変数から色を取得
   - パフォーマンスのため色情報はキャッシュ
   - 3桁の16進カラーの場合、6桁の16進カラーに変換して使用
-- ライト/ダーク両テーマに対応
+
+#### Nodes 1.0 (Canvas) の場合の配色
+
+チェックボックスがオン状態:
+- チェックボックスの枠線: --input-text
+- チェックボックスの塗り: --input-text
+- チェックボックスのチェック: --comfy-input-bg
+- 表示用テキスト: --input-text
+
+チェックボックスがオフ状態:
+- チェックボックスの枠線: --input-text (透明度: 0.5)
+- チェックボックスの塗り: なし
+- 表示用テキスト: --input-text (透明度: 0.4)
+
+その他:
+- ウェイトボタンの塗り: --comfy-input-bg
+- ウェイトボタンの+と-: --input-text (透明度: 0.6)
+- "No Text" の文字: --input-text (透明度: 0.6)
+
+#### Nodes 2.0 (DOM) の場合の配色
+
+チェックボックスがオン状態:
+- チェックボックスの枠線: --text-primary
+- チェックボックスの塗り: --text-primary
+- チェックボックスのチェック: --component-node-widget-background
+- 表示用テキスト: --text-primary
+
+チェックボックスがオフ状態:
+- チェックボックスの枠線: --text-primary (透明度: 0.5)
+- チェックボックスの塗り: なし
+- 表示用テキスト: --text-primary (透明度: 0.4)
+
+その他:
+- ウェイトボタンの塗り: --component-node-widget-background
+- ウェイトボタンの塗り (ホバー時): --component-node-widget-background-hovered
+- ウェイトボタンの+と-: --text-primary (透明度: 0.6)
+- トグルボタンの文字: --text-primary (透明度: 0.6)
+- トグルボタンの塗り: --component-node-widget-background
+- トグルボタンの塗り (ホバー時): --component-node-widget-background-hovered
+- "No Text" の文字: --text-primary (透明度: 0.6)
 
 ### 拡張登録
 

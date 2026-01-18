@@ -458,7 +458,7 @@ function getColors() {
     defaultTextColor: themeColors.inputText,
     inactiveTextColor: themeColors.inputText + "66",
     checkboxBorderColor: themeColors.inputText + "80",
-    checkboxFillColor: themeColors.inputText + "BB",
+    checkboxFillColor: themeColors.inputText,
     checkboxSymbolColor: themeColors.comfyInputBg,
     weightButtonFillColor: themeColors.comfyInputBg,
     weightButtonSymbolColor: themeColors.inputText + "99",
@@ -469,28 +469,12 @@ function getColors() {
 function getComfyUIThemeColors() {
   const style = getComputedStyle(document.documentElement);
   return {
-    fgColor:
-      expandHexColor(style.getPropertyValue("--fg-color").trim()) || "#ffffff",
-    bgColor:
-      expandHexColor(style.getPropertyValue("--bg-color").trim()) || "#202020",
-    comfyMenuBg:
-      expandHexColor(style.getPropertyValue("--comfy-menu-bg").trim()) ||
-      "#353535",
     comfyInputBg:
       expandHexColor(style.getPropertyValue("--comfy-input-bg").trim()) ||
       "#222222",
     inputText:
       expandHexColor(style.getPropertyValue("--input-text").trim()) ||
       "#dddddd",
-    descripText:
-      expandHexColor(style.getPropertyValue("--descrip-text").trim()) ||
-      "#999999",
-    errorText:
-      expandHexColor(style.getPropertyValue("--error-text").trim()) ||
-      "#ff4444",
-    borderColor:
-      expandHexColor(style.getPropertyValue("--border-color").trim()) ||
-      "#4e4e4e",
   };
 }
 

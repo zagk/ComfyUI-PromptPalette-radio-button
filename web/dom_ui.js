@@ -12,6 +12,37 @@ const CONFIG = {
 
 const DOM_WIDGET_NAME = "promptpalette_ui";
 
+const CSS_VAR = {
+  textPrimary: "var(--text-primary)",
+  widgetBackground: "var(--component-node-widget-background)",
+  widgetBackgroundHovered: "var(--component-node-widget-background-hovered)",
+};
+
+const COLOR = {
+  // Text
+  defaultTextColor: CSS_VAR.textPrimary,
+  inactiveTextColor: `color-mix(in srgb, ${CSS_VAR.textPrimary} 40%, transparent)`,
+
+  // Checkbox
+  checkboxBorderColor: CSS_VAR.textPrimary,
+  checkboxBorderColorOff: `color-mix(in srgb, ${CSS_VAR.textPrimary} 50%, transparent)`,
+  checkboxFillColor: CSS_VAR.textPrimary,
+  checkboxSymbolColor: CSS_VAR.widgetBackground,
+
+  // Weight button
+  weightButtonFillColor: CSS_VAR.widgetBackground,
+  weightButtonFillColorHovered: CSS_VAR.widgetBackgroundHovered,
+  weightButtonSymbolColor: `color-mix(in srgb, ${CSS_VAR.textPrimary} 60%, transparent)`,
+
+  // Toggle button
+  toggleButtonFillColor: CSS_VAR.widgetBackground,
+  toggleButtonFillColorHovered: CSS_VAR.widgetBackgroundHovered,
+  toggleButtonTextColor: `color-mix(in srgb, ${CSS_VAR.textPrimary} 60%, transparent)`,
+
+  // Empty message
+  emptyMessageColor: `color-mix(in srgb, ${CSS_VAR.textPrimary} 60%, transparent)`,
+};
+
 export function setupDomUI(nodeType, app) {
   // Hook once per node type to avoid double-wrapping prototype methods.
   if (nodeType.prototype.__nodeTypeInitialized) {
@@ -119,7 +150,7 @@ class PromptPaletteDomUI {
     rootContainer.style.boxSizing = "border-box";
     rootContainer.style.height = "100%";
     rootContainer.style.fontSize = `${CONFIG.fontSize}px`;
-    rootContainer.style.color = "var(--input-text)";
+    rootContainer.style.color = COLOR.defaultTextColor;
     return rootContainer;
   }
 
@@ -140,7 +171,7 @@ class PromptPaletteDomUI {
     emptyMessage.style.alignItems = "center";
     emptyMessage.style.justifyContent = "center";
     emptyMessage.style.flex = "1";
-    emptyMessage.style.opacity = "0.6";
+    emptyMessage.style.color = COLOR.emptyMessageColor;
     return emptyMessage;
   }
 
@@ -159,10 +190,9 @@ class PromptPaletteDomUI {
     toggleButton.style.border = "0";
     toggleButton.style.borderRadius = "6px";
     toggleButton.style.padding = "6px 8px";
-    toggleButton.style.background = "var(--component-node-widget-background)";
-    toggleButton.style.color = "var(--base-foreground)";
-    toggleButton.style.fontSize = "12px";
-    toggleButton.style.lineHeight = "1.2";
+    toggleButton.style.background = COLOR.toggleButtonFillColor;
+    toggleButton.style.color = COLOR.toggleButtonTextColor;
+    toggleButton.style.fontSize = `${CONFIG.fontSize}px`;
     toggleButton.style.cursor = "pointer";
 
     toggleButton.addEventListener("click", () => {
@@ -173,11 +203,10 @@ class PromptPaletteDomUI {
       );
     });
     toggleButton.addEventListener("mouseenter", () => {
-      toggleButton.style.background =
-        "var(--component-node-widget-background-hovered)";
+      toggleButton.style.background = COLOR.toggleButtonFillColorHovered;
     });
     toggleButton.addEventListener("mouseleave", () => {
-      toggleButton.style.background = "var(--component-node-widget-background)";
+      toggleButton.style.background = COLOR.toggleButtonFillColor;
     });
 
     return toggleButton;
@@ -372,9 +401,6 @@ class PromptPaletteRow {
     row.style.display = "flex";
     row.style.alignItems = "center";
     row.style.gap = `${CONFIG.checkboxMarginRight}px`;
-    if (this.#line.commentedOut) {
-      row.style.opacity = "0.5";
-    }
 
     // Build Checkbox + Display Text.
     row.append(this.#createCheckbox());
@@ -405,18 +431,22 @@ class PromptPaletteRow {
     checkbox.style.width = `${CONFIG.checkboxSize}px`;
     checkbox.style.height = `${CONFIG.checkboxSize}px`;
     checkbox.style.borderRadius = "4px";
-    checkbox.style.border = "1px solid var(--input-text)";
     checkbox.style.background = "transparent";
-    checkbox.style.color = "var(--comfy-input-bg)";
+    checkbox.style.color = COLOR.checkboxSymbolColor;
     checkbox.style.lineHeight = "1";
     checkbox.style.padding = "0";
     checkbox.style.display = "inline-flex";
     checkbox.style.alignItems = "center";
     checkbox.style.justifyContent = "center";
     checkbox.style.cursor = "pointer";
-    if (!this.#line.commentedOut) {
+    if (this.#line.commentedOut) {
+      checkbox.style.border = `1px solid ${COLOR.checkboxBorderColorOff}`;
+    } else {
+      checkbox.style.border = `1px solid ${COLOR.checkboxBorderColor}`;
       checkbox.textContent = "\u2713";
-      checkbox.style.background = "var(--input-text)";
+      checkbox.style.background = COLOR.checkboxFillColor;
+      checkbox.style.fontSize = "16px";
+      checkbox.style.fontWeight = "bold";
     }
     checkbox.addEventListener("click", () => {
       this.#onToggleClick();
@@ -431,6 +461,9 @@ class PromptPaletteRow {
     displayTextElement.style.overflow = "hidden";
     displayTextElement.style.textOverflow = "ellipsis";
     displayTextElement.style.whiteSpace = "pre";
+    if (this.#line.commentedOut) {
+      displayTextElement.style.opacity = "0.4";
+    }
     return displayTextElement;
   }
 
@@ -459,9 +492,9 @@ class PromptPaletteRow {
     button.style.height = `${CONFIG.weightButtonSize}px`;
     button.style.borderRadius = "4px";
     button.style.border = "0";
-    button.style.background = "var(--component-node-widget-background)";
-    button.style.color = "var(--base-foreground)";
-    button.style.fontSize = "12px";
+    button.style.background = COLOR.weightButtonFillColor;
+    button.style.color = COLOR.weightButtonSymbolColor;
+    button.style.fontSize = "16px";
     button.style.lineHeight = "1";
     button.style.padding = "0";
     button.style.display = "inline-flex";
@@ -470,11 +503,10 @@ class PromptPaletteRow {
     button.style.cursor = "pointer";
     button.addEventListener("click", onClick);
     button.addEventListener("mouseenter", () => {
-      button.style.background =
-        "var(--component-node-widget-background-hovered)";
+      button.style.background = COLOR.weightButtonFillColorHovered;
     });
     button.addEventListener("mouseleave", () => {
-      button.style.background = "var(--component-node-widget-background)";
+      button.style.background = COLOR.weightButtonFillColor;
     });
     return button;
   }
