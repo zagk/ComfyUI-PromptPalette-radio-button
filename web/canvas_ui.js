@@ -1,17 +1,17 @@
+import { Line } from "./line.js";
 import {
+  calculateNodeHeight,
   findTextWidget,
   hideWidgetAndKeepSpace,
   showWidget,
-  calculateNodeHeight,
 } from "./ui_utils.js";
-import { Line } from "./line.js";
 
 const CONFIG = {
   minNodeHeight: 80,
   topNodePadding: 40,
   sideNodePadding: 14,
   lineHeight: 24,
-  fontSize: 14,
+  fontSize: 13,
   checkboxSize: 16,
   spaceBetweenCheckboxAndText: 6,
   weightButtonSize: 16,
@@ -135,13 +135,18 @@ class PromptPaletteCanvasUI {
   }
 
   addToggleButton() {
-    this.toggleButton = this.node.addWidget("button", "Edit", "edit_text", () => {
-      this.changeMode(
-        this.mode === PromptPaletteCanvasUI.MODE.EDIT
-          ? PromptPaletteCanvasUI.MODE.DISPLAY
-          : PromptPaletteCanvasUI.MODE.EDIT,
-      );
-    });
+    this.toggleButton = this.node.addWidget(
+      "button",
+      "Edit",
+      "edit_text",
+      () => {
+        this.changeMode(
+          this.mode === PromptPaletteCanvasUI.MODE.EDIT
+            ? PromptPaletteCanvasUI.MODE.DISPLAY
+            : PromptPaletteCanvasUI.MODE.EDIT,
+        );
+      },
+    );
 
     const spacer = this.node.addWidget("text", "", "");
     spacer.computeSize = () => [0, 6];
@@ -240,9 +245,6 @@ class PromptPaletteCanvasUI {
       this.app.graph.setDirtyCanvas(true);
     }
 
-    ctx.font = "14px monospace";
-    ctx.textAlign = "left";
-
     if (text.trim() !== "") {
       this.drawCheckboxItems(ctx, lines);
     } else {
@@ -252,6 +254,7 @@ class PromptPaletteCanvasUI {
 
   drawEmptyMessage(ctx) {
     ctx.fillStyle = getColors().inactiveTextColor;
+    ctx.font = `${CONFIG.fontSize}px sans-serif`;
     ctx.textAlign = "center";
     ctx.fillText("No Text", this.node.size[0] / 2, this.node.size[1] / 2);
   }
@@ -349,12 +352,26 @@ class PromptPaletteCanvasUI {
 
     const plusButtonX = currentX - CONFIG.weightButtonSize;
     const plusButtonY = y;
-    this.drawWeightButton(ctx, plusButtonX, plusButtonY, "+", lineIndex, PromptPaletteCanvasUI.ACTION.WEIGHT_PLUS);
+    this.drawWeightButton(
+      ctx,
+      plusButtonX,
+      plusButtonY,
+      "+",
+      lineIndex,
+      PromptPaletteCanvasUI.ACTION.WEIGHT_PLUS,
+    );
     currentX = plusButtonX - 4;
 
     const minusButtonX = currentX - CONFIG.weightButtonSize;
     const minusButtonY = y;
-    this.drawWeightButton(ctx, minusButtonX, minusButtonY, "-", lineIndex, PromptPaletteCanvasUI.ACTION.WEIGHT_MINUS);
+    this.drawWeightButton(
+      ctx,
+      minusButtonX,
+      minusButtonY,
+      "-",
+      lineIndex,
+      PromptPaletteCanvasUI.ACTION.WEIGHT_MINUS,
+    );
     currentX = minusButtonX - 4;
 
     if (line.weight !== 1.0) {
@@ -363,7 +380,7 @@ class PromptPaletteCanvasUI {
         ? textColors.inactiveTextColor
         : textColors.defaultTextColor;
       ctx.textAlign = "right";
-      ctx.font = "12px monospace";
+      ctx.font = `${CONFIG.fontSize}px sans-serif`;
       const textBaseline = checkboxCenter + CONFIG.fontSize * 0.35;
       ctx.fillText(weightText, currentX - 2, textBaseline);
       ctx.textAlign = "left";
