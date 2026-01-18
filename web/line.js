@@ -1,64 +1,49 @@
 const COMMENT_PREFIX = "// ";
-const COMMENT_PREFIX_AND_TEXT_RE = /^(\s*\/\/\s*)(.*)/;
-const WEIGHT_RE = /\(([^:]+):(\d+\.?\d*)\)/;
-const WEIGHT_RE_GLOBAL = /\(([^:]+):(\d+\.?\d*)\)/g;
+const LINE_RE = /^(\s*\/\/\s*)?(.*?)(\/\/.*)?$/;
+const WEIGHT_RE = /^\((.+):(\d+\.?\d*)\)$/;
 
 export class Line {
-  #isCommented;
-  #textWithoutCommentPrefix;
-  #beforeTrailingComment;
+  #isCommentedOut;
+  #phraseText;
   #trailingComment;
   #weight;
 
   constructor(rawText = "") {
-    this.#isCommented = rawText.trim().startsWith("//");
+    const [, commentPrefix, body, trailingComment] = rawText.match(LINE_RE);
+    this.#isCommentedOut = !!commentPrefix;
+    this.#trailingComment = trailingComment ?? "";
 
-    const match = rawText.match(COMMENT_PREFIX_AND_TEXT_RE);
-    this.#textWithoutCommentPrefix = match ? match[2] : rawText;
+    const { phrase, weight } = this.#parseWeightedText(body);
+    this.#phraseText = phrase;
+    this.#weight = weight;
+  }
 
-    const searchText = this.#textWithoutCommentPrefix;
-    const trailingCommentIndex = searchText.indexOf("//");
-    if (trailingCommentIndex !== -1) {
-      this.#beforeTrailingComment = searchText
-        .substring(0, trailingCommentIndex)
-        .trim();
-      this.#trailingComment = searchText.substring(trailingCommentIndex);
-    } else {
-      this.#beforeTrailingComment = searchText;
-      this.#trailingComment = "";
+  #parseWeightedText(text) {
+    const cleanText = text.trim().replace(/,\s*$/, "");
+    const match = cleanText.match(WEIGHT_RE);
+    if (match) {
+      return { phrase: match[1], weight: parseFloat(match[2]) || 1.0 };
     }
-    this.#weight = this.#parseWeight(this.#beforeTrailingComment);
+    return { phrase: cleanText, weight: 1.0 };
   }
 
-  get isCommented() {
-    return this.#isCommented;
+  get isCommentedOut() {
+    return this.#isCommentedOut;
   }
 
-  toggleComment() {
-    this.#isCommented = !this.#isCommented;
+  toggleCommentedOut() {
+    this.#isCommentedOut = !this.#isCommentedOut;
   }
 
   get displayText() {
-    // Inline comments are preserved in the display text
-    let text = this.#textWithoutCommentPrefix;
-    text = text.replace(WEIGHT_RE_GLOBAL, "$1");
-    if (text.trim().endsWith(",")) {
-      text = text.substring(0, text.lastIndexOf(","));
+    if (this.#trailingComment) {
+      return `${this.#phraseText} ${this.#trailingComment}`;
     }
-    return text;
-  }
-
-  get phraseText() {
-    let text = this.#beforeTrailingComment;
-    text = text.replace(WEIGHT_RE_GLOBAL, "$1");
-    if (text.trim().endsWith(",")) {
-      text = text.substring(0, text.lastIndexOf(","));
-    }
-    return text;
+    return this.#phraseText;
   }
 
   isPhraseTextEmpty() {
-    return this.phraseText.trim() === "";
+    return this.#phraseText.trim() === "";
   }
 
   get weightText() {
@@ -76,46 +61,28 @@ export class Line {
     return this.#weight;
   }
 
-  set weight(value) {
+  adjustWeight(delta) {
     const minWeight = 0.1;
     const maxWeight = 2.0;
-    const clampedWeight = Math.min(maxWeight, Math.max(minWeight, value));
+    const newWeight = this.#weight + delta;
+    const clampedWeight = Math.min(maxWeight, Math.max(minWeight, newWeight));
     this.#weight = Math.round(clampedWeight * 10) / 10;
   }
 
-  adjustWeight(delta) {
-    this.weight = this.#weight + delta;
-  }
-
   buildText() {
-    const weightedText = this.#buildWeightedText(
-      this.#beforeTrailingComment,
-      this.#weight,
-    );
-    const hasTrailingComment = this.#trailingComment !== "";
-    const textWithTrailingComment = hasTrailingComment
+    const weightedText = this.#buildWeightedText(this.#phraseText, this.#weight);
+    const textWithTrailingComment = this.#trailingComment
       ? `${weightedText} ${this.#trailingComment}`
       : weightedText;
-    return this.#isCommented
+    return this.#isCommentedOut
       ? COMMENT_PREFIX + textWithTrailingComment
       : textWithTrailingComment;
   }
 
-  #parseWeight(text) {
-    const match = text.match(WEIGHT_RE);
-    if (match) {
-      const weight = parseFloat(match[2]);
-      return isNaN(weight) ? 1.0 : weight;
-    }
-    return 1.0;
-  }
-
-  #buildWeightedText(text, weight) {
-    const cleanText = text.replace(WEIGHT_RE, "$1").trim();
-    const textWithoutComma = cleanText.replace(/,\s*$/, "").trim();
+  #buildWeightedText(phraseText, weight) {
     if (weight === 1.0) {
-      return textWithoutComma;
+      return phraseText;
     }
-    return `(${textWithoutComma}:${weight.toFixed(1)})`;
+    return `(${phraseText}:${weight})`;
   }
 }

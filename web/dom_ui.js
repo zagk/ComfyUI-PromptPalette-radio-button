@@ -310,7 +310,7 @@ class PromptPaletteDomUI {
     if (lineIndex < 0 || lineIndex >= textLines.length) return;
 
     const line = new Line(textLines[lineIndex]);
-    line.toggleComment();
+    line.toggleCommentedOut();
     textLines[lineIndex] = line.buildText();
     this.#textWidget.value = textLines.join("\n");
     this.#switchToDisplayModeUI();
@@ -367,18 +367,18 @@ class PromptPaletteRow {
     if (this.#line.isPhraseTextEmpty()) {
       return this.#createEmptyRow();
     }
-    const isCommented = this.#line.isCommented;
+    const isCommentedOut = this.#line.isCommentedOut;
     const row = document.createElement("div");
     row.style.height = `${CONFIG.lineHeight}px`;
     row.style.display = "flex";
     row.style.alignItems = "center";
     row.style.gap = `${CONFIG.spaceBetweenCheckboxAndText}px`;
-    if (isCommented) {
+    if (isCommentedOut) {
       row.style.opacity = "0.5";
     }
 
     // Build Checkbox + Display Text.
-    row.append(this.#createCheckbox(isCommented));
+    row.append(this.#createCheckbox(isCommentedOut));
     const displayTextElement = this.#createDisplayText();
     if (this.#line.weight !== 1.0) {
       displayTextElement.style.fontWeight = "bold";
@@ -400,7 +400,7 @@ class PromptPaletteRow {
     return row;
   }
 
-  #createCheckbox(isCommented) {
+  #createCheckbox(isCommentedOut) {
     const checkbox = document.createElement("button");
     checkbox.type = "button";
     checkbox.style.width = `${CONFIG.checkboxSize}px`;
@@ -415,7 +415,7 @@ class PromptPaletteRow {
     checkbox.style.alignItems = "center";
     checkbox.style.justifyContent = "center";
     checkbox.style.cursor = "pointer";
-    if (!isCommented) {
+    if (!isCommentedOut) {
       checkbox.textContent = "\u2713";
       checkbox.style.background = "var(--input-text)";
     }

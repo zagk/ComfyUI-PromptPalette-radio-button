@@ -212,7 +212,7 @@ class PromptPaletteCanvasUI {
     if (lineIndex < 0 || lineIndex >= textLines.length) return;
 
     const line = new Line(textLines[lineIndex]);
-    line.toggleComment();
+    line.toggleCommentedOut();
     textLines[lineIndex] = line.buildText();
     this.#textWidget.value = textLines.join("\n");
     this.#app.graph.setDirtyCanvas(true);
@@ -268,15 +268,15 @@ class PromptPaletteCanvasUI {
       if (line.isPhraseTextEmpty()) return;
 
       const y = CONFIG.topNodePadding + index * CONFIG.lineHeight;
-      const isCommented = line.isCommented;
+      const isCommentedOut = line.isCommentedOut;
 
-      this.#drawCheckbox(ctx, y, isCommented, index);
-      this.#drawDisplayText(ctx, line, y, isCommented);
-      this.#drawWeightControls(ctx, y, line, isCommented, index);
+      this.#drawCheckbox(ctx, y, isCommentedOut, index);
+      this.#drawDisplayText(ctx, line, y, isCommentedOut);
+      this.#drawWeightControls(ctx, y, line, isCommentedOut, index);
     });
   }
 
-  #drawCheckbox(ctx, y, isCommented, lineIndex) {
+  #drawCheckbox(ctx, y, isCommentedOut, lineIndex) {
     const checkboxX = CONFIG.sideNodePadding;
     const checkboxY = y;
     const checkboxW = CONFIG.checkboxSize;
@@ -292,7 +292,7 @@ class PromptPaletteCanvasUI {
       action: PromptPaletteCanvasUI.ACTION.TOGGLE,
     });
 
-    if (isCommented) {
+    if (isCommentedOut) {
       ctx.strokeStyle = getColors().checkboxBorderColor;
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -317,9 +317,9 @@ class PromptPaletteCanvasUI {
     }
   }
 
-  #drawDisplayText(ctx, line, y, isCommented) {
+  #drawDisplayText(ctx, line, y, isCommentedOut) {
     const colors = getColors();
-    ctx.fillStyle = isCommented
+    ctx.fillStyle = isCommentedOut
       ? colors.inactiveTextColor
       : colors.defaultTextColor;
     ctx.textAlign = "left";
@@ -357,7 +357,7 @@ class PromptPaletteCanvasUI {
     ctx.restore();
   }
 
-  #drawWeightControls(ctx, y, line, isCommented, lineIndex) {
+  #drawWeightControls(ctx, y, line, isCommentedOut, lineIndex) {
     const nodeWidth = this.#node.size[0];
     if (line.isPhraseTextEmpty()) return;
 
@@ -392,7 +392,7 @@ class PromptPaletteCanvasUI {
 
     if (line.weight !== 1.0) {
       const textColors = getColors();
-      ctx.fillStyle = isCommented
+      ctx.fillStyle = isCommentedOut
         ? textColors.inactiveTextColor
         : textColors.defaultTextColor;
       ctx.textAlign = "right";
