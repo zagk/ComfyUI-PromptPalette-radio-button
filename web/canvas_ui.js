@@ -62,9 +62,6 @@ export function setupCanvasUI(nodeType, app) {
 }
 
 class PromptPaletteCanvasUI {
-  // ========================================
-  // Static Properties
-  // ========================================
   static MODE = Object.freeze({
     EDIT: "edit",
     DISPLAY: "display",
@@ -75,83 +72,84 @@ class PromptPaletteCanvasUI {
     WEIGHT_MINUS: "weight_minus",
   });
 
-  // ========================================
-  // Constructor
-  // ========================================
-  constructor(node, textWidget, app) {
-    this.node = node;
-    this.textWidget = textWidget;
-    this.app = app;
-    this.mode = PromptPaletteCanvasUI.MODE.DISPLAY;
-    this.clickableAreas = [];
-    this.toggleButton = null;
+  #node;
+  #textWidget;
+  #app;
+  #mode;
+  #clickableAreas;
+  #toggleButton;
 
-    this.hideTextWidget();
-    this.addToggleButton();
-    this.attachClickHandler();
+  constructor(node, textWidget, app) {
+    this.#node = node;
+    this.#textWidget = textWidget;
+    this.#app = app;
+    this.#mode = PromptPaletteCanvasUI.MODE.DISPLAY;
+    this.#clickableAreas = [];
+    this.#toggleButton = null;
+
+    this.#hideTextWidget();
+    this.#addToggleButton();
+    this.#attachClickHandler();
   }
 
-  // ========================================
-  // Public Methods
-  // ========================================
   draw(ctx) {
-    if (this.mode !== PromptPaletteCanvasUI.MODE.DISPLAY) {
+    if (this.#mode !== PromptPaletteCanvasUI.MODE.DISPLAY) {
       return;
     }
-    this.drawCheckboxList(ctx);
+    this.#drawCheckboxList(ctx);
   }
 
   // ========================================
   // Mode Management
   // ========================================
-  changeMode(mode) {
-    this.mode = mode;
-    this.applyMode();
+  #changeMode(mode) {
+    this.#mode = mode;
+    this.#applyMode();
   }
 
-  applyMode() {
-    this.updateTextWidgetVisibility();
-    this.updateToggleButtonLabel();
-    this.app.graph.setDirtyCanvas(true);
+  #applyMode() {
+    this.#updateTextWidgetVisibility();
+    this.#updateToggleButtonLabel();
+    this.#app.graph.setDirtyCanvas(true);
   }
 
-  updateTextWidgetVisibility() {
-    if (!this.textWidget) return;
-    if (this.mode === PromptPaletteCanvasUI.MODE.EDIT) {
-      showWidget(this.textWidget);
+  #updateTextWidgetVisibility() {
+    if (!this.#textWidget) return;
+    if (this.#mode === PromptPaletteCanvasUI.MODE.EDIT) {
+      showWidget(this.#textWidget);
     } else {
-      hideWidgetAndKeepSpace(this.textWidget);
+      hideWidgetAndKeepSpace(this.#textWidget);
     }
   }
 
-  updateToggleButtonLabel() {
-    if (!this.toggleButton) return;
-    this.toggleButton.name =
-      this.mode === PromptPaletteCanvasUI.MODE.EDIT ? "Save" : "Edit";
+  #updateToggleButtonLabel() {
+    if (!this.#toggleButton) return;
+    this.#toggleButton.name =
+      this.#mode === PromptPaletteCanvasUI.MODE.EDIT ? "Save" : "Edit";
   }
 
   // ========================================
   // Widget Management
   // ========================================
-  hideTextWidget() {
-    hideWidgetAndKeepSpace(this.textWidget);
+  #hideTextWidget() {
+    hideWidgetAndKeepSpace(this.#textWidget);
   }
 
-  addToggleButton() {
-    this.toggleButton = this.node.addWidget(
+  #addToggleButton() {
+    this.#toggleButton = this.#node.addWidget(
       "button",
       "Edit",
       "edit_text",
       () => {
-        this.changeMode(
-          this.mode === PromptPaletteCanvasUI.MODE.EDIT
+        this.#changeMode(
+          this.#mode === PromptPaletteCanvasUI.MODE.EDIT
             ? PromptPaletteCanvasUI.MODE.DISPLAY
             : PromptPaletteCanvasUI.MODE.EDIT,
         );
       },
     );
 
-    const spacer = this.node.addWidget("text", "", "");
+    const spacer = this.#node.addWidget("text", "", "");
     spacer.computeSize = () => [0, 6];
     spacer.draw = () => {};
     spacer.serialize = false;
@@ -160,26 +158,26 @@ class PromptPaletteCanvasUI {
   // ========================================
   // Click Handling
   // ========================================
-  attachClickHandler() {
+  #attachClickHandler() {
     const self = this;
-    this.node.onMouseDown = function (e, pos) {
-      self.handleMouseDown(pos);
+    this.#node.onMouseDown = function (e, pos) {
+      self.#handleMouseDown(pos);
     };
   }
 
-  handleMouseDown(pos) {
-    if (this.mode === PromptPaletteCanvasUI.MODE.EDIT) {
+  #handleMouseDown(pos) {
+    if (this.#mode === PromptPaletteCanvasUI.MODE.EDIT) {
       return;
     }
-    const clickedArea = this.findClickedArea(pos);
+    const clickedArea = this.#findClickedArea(pos);
     if (clickedArea) {
-      this.handleClickableAreaAction(clickedArea);
+      this.#handleClickableAreaAction(clickedArea);
     }
   }
 
-  findClickedArea(pos) {
+  #findClickedArea(pos) {
     const [x, y] = pos;
-    for (const area of this.clickableAreas) {
+    for (const area of this.#clickableAreas) {
       if (
         x >= area.x &&
         x <= area.x + area.w &&
@@ -192,16 +190,16 @@ class PromptPaletteCanvasUI {
     return null;
   }
 
-  handleClickableAreaAction(area) {
+  #handleClickableAreaAction(area) {
     switch (area.action) {
       case PromptPaletteCanvasUI.ACTION.TOGGLE:
-        this.toggleLine(area.lineIndex);
+        this.#toggleLine(area.lineIndex);
         break;
       case PromptPaletteCanvasUI.ACTION.WEIGHT_PLUS:
-        this.adjustLineWeight(area.lineIndex, 0.1);
+        this.#adjustLineWeight(area.lineIndex, 0.1);
         break;
       case PromptPaletteCanvasUI.ACTION.WEIGHT_MINUS:
-        this.adjustLineWeight(area.lineIndex, -0.1);
+        this.#adjustLineWeight(area.lineIndex, -0.1);
         break;
     }
   }
@@ -209,61 +207,61 @@ class PromptPaletteCanvasUI {
   // ========================================
   // Data Operations
   // ========================================
-  toggleLine(lineIndex) {
-    const textLines = this.textWidget.value.split("\n");
+  #toggleLine(lineIndex) {
+    const textLines = this.#textWidget.value.split("\n");
     if (lineIndex < 0 || lineIndex >= textLines.length) return;
 
     const line = new Line(textLines[lineIndex]);
     line.toggleComment();
     textLines[lineIndex] = line.buildText();
-    this.textWidget.value = textLines.join("\n");
-    this.app.graph.setDirtyCanvas(true);
+    this.#textWidget.value = textLines.join("\n");
+    this.#app.graph.setDirtyCanvas(true);
   }
 
-  adjustLineWeight(lineIndex, delta) {
-    const textLines = this.textWidget.value.split("\n");
+  #adjustLineWeight(lineIndex, delta) {
+    const textLines = this.#textWidget.value.split("\n");
     if (lineIndex < 0 || lineIndex >= textLines.length) return;
 
     const line = new Line(textLines[lineIndex]);
     line.adjustWeight(delta);
     textLines[lineIndex] = line.buildText();
-    this.textWidget.value = textLines.join("\n");
-    this.app.graph.setDirtyCanvas(true);
+    this.#textWidget.value = textLines.join("\n");
+    this.#app.graph.setDirtyCanvas(true);
   }
 
   // ========================================
   // Drawing
   // ========================================
-  drawCheckboxList(ctx) {
-    if (this.node.flags && this.node.flags.collapsed) {
+  #drawCheckboxList(ctx) {
+    if (this.#node.flags && this.#node.flags.collapsed) {
       return;
     }
 
-    const text = this.textWidget.value || "";
+    const text = this.#textWidget.value || "";
     const lines = text.split("\n");
     const textHeight = calculateNodeHeight(lines.length, CONFIG);
 
-    if (this.node.size[1] < textHeight) {
-      this.node.size[1] = textHeight;
-      this.app.graph.setDirtyCanvas(true);
+    if (this.#node.size[1] < textHeight) {
+      this.#node.size[1] = textHeight;
+      this.#app.graph.setDirtyCanvas(true);
     }
 
     if (text.trim() !== "") {
-      this.drawCheckboxItems(ctx, lines);
+      this.#drawCheckboxItems(ctx, lines);
     } else {
-      this.drawEmptyMessage(ctx);
+      this.#drawEmptyMessage(ctx);
     }
   }
 
-  drawEmptyMessage(ctx) {
+  #drawEmptyMessage(ctx) {
     ctx.fillStyle = getColors().inactiveTextColor;
     ctx.font = `${CONFIG.fontSize}px sans-serif`;
     ctx.textAlign = "center";
-    ctx.fillText("No Text", this.node.size[0] / 2, this.node.size[1] / 2);
+    ctx.fillText("No Text", this.#node.size[0] / 2, this.#node.size[1] / 2);
   }
 
-  drawCheckboxItems(ctx, lines) {
-    this.clickableAreas = [];
+  #drawCheckboxItems(ctx, lines) {
+    this.#clickableAreas = [];
 
     lines.forEach((lineText, index) => {
       const line = new Line(lineText);
@@ -272,19 +270,19 @@ class PromptPaletteCanvasUI {
       const y = CONFIG.topNodePadding + index * CONFIG.lineHeight;
       const isCommented = line.isCommented;
 
-      this.drawCheckbox(ctx, y, isCommented, index);
-      this.drawDisplayText(ctx, line, y, isCommented);
-      this.drawWeightControls(ctx, y, line, isCommented, index);
+      this.#drawCheckbox(ctx, y, isCommented, index);
+      this.#drawDisplayText(ctx, line, y, isCommented);
+      this.#drawWeightControls(ctx, y, line, isCommented, index);
     });
   }
 
-  drawCheckbox(ctx, y, isCommented, lineIndex) {
+  #drawCheckbox(ctx, y, isCommented, lineIndex) {
     const checkboxX = CONFIG.sideNodePadding;
     const checkboxY = y;
     const checkboxW = CONFIG.checkboxSize;
     const checkboxH = CONFIG.checkboxSize;
 
-    this.clickableAreas.push({
+    this.#clickableAreas.push({
       x: checkboxX,
       y: checkboxY,
       w: checkboxW,
@@ -319,7 +317,7 @@ class PromptPaletteCanvasUI {
     }
   }
 
-  drawDisplayText(ctx, line, y, isCommented) {
+  #drawDisplayText(ctx, line, y, isCommented) {
     const colors = getColors();
     ctx.fillStyle = isCommented
       ? colors.inactiveTextColor
@@ -346,7 +344,7 @@ class PromptPaletteCanvasUI {
       CONFIG.weightButtonGap +
       CONFIG.weightButtonSize +
       CONFIG.sideNodePadding;
-    const availableWidth = this.node.size[0] - textX - rightElementsWidth;
+    const availableWidth = this.#node.size[0] - textX - rightElementsWidth;
 
     // Clip text to available width
     ctx.save();
@@ -359,8 +357,8 @@ class PromptPaletteCanvasUI {
     ctx.restore();
   }
 
-  drawWeightControls(ctx, y, line, isCommented, lineIndex) {
-    const nodeWidth = this.node.size[0];
+  #drawWeightControls(ctx, y, line, isCommented, lineIndex) {
+    const nodeWidth = this.#node.size[0];
     if (line.isPhraseTextEmpty()) return;
 
     const weightText = line.getWeightText();
@@ -370,7 +368,7 @@ class PromptPaletteCanvasUI {
 
     const plusButtonX = currentX - CONFIG.weightButtonSize;
     const plusButtonY = y;
-    this.drawWeightButton(
+    this.#drawWeightButton(
       ctx,
       plusButtonX,
       plusButtonY,
@@ -382,7 +380,7 @@ class PromptPaletteCanvasUI {
 
     const minusButtonX = currentX - CONFIG.weightButtonSize;
     const minusButtonY = y;
-    this.drawWeightButton(
+    this.#drawWeightButton(
       ctx,
       minusButtonX,
       minusButtonY,
@@ -409,10 +407,10 @@ class PromptPaletteCanvasUI {
     }
   }
 
-  drawWeightButton(ctx, x, y, symbol, lineIndex, action) {
+  #drawWeightButton(ctx, x, y, symbol, lineIndex, action) {
     const buttonSize = CONFIG.weightButtonSize;
 
-    this.clickableAreas.push({
+    this.#clickableAreas.push({
       x: x,
       y: y,
       w: buttonSize,
