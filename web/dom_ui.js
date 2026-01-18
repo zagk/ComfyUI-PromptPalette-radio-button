@@ -52,52 +52,65 @@ class PromptPaletteDomUI {
     WEIGHT_MINUS: "weight_minus",
   });
 
+  #node;
+  #textWidget;
+  #app;
+  #mode;
+  #rootContainer;
+  #rowsContainer;
+  #emptyMessage;
+  #toggleButton;
+  #rootWidget;
+
   constructor(node, textWidget, app) {
-    this.node = node;
-    this.textWidget = textWidget;
-    this.app = app;
-    this.mode = PromptPaletteDomUI.MODE.DISPLAY;
+    this.#node = node;
+    this.#textWidget = textWidget;
+    this.#app = app;
+    this.#mode = PromptPaletteDomUI.MODE.DISPLAY;
 
-    this.rootContainer = this.createRootContainer();
-    this.rowsContainer = this.createRowsContainer();
-    this.emptyMessage = this.createEmptyMessage();
-    this.toggleButton = this.createToggleButton();
-    const buttonContainer = this.createButtonContainer();
-    buttonContainer.append(this.toggleButton);
+    this.#rootContainer = this.#createRootContainer();
+    this.#rowsContainer = this.#createRowsContainer();
+    this.#emptyMessage = this.#createEmptyMessage();
+    this.#toggleButton = this.#createToggleButton();
+    const buttonContainer = this.#createButtonContainer();
+    buttonContainer.append(this.#toggleButton);
 
-    this.rootContainer.append(
-      this.rowsContainer,
-      this.emptyMessage,
+    this.#rootContainer.append(
+      this.#rowsContainer,
+      this.#emptyMessage,
       buttonContainer,
     );
-    this.rootWidget = this.registerRootWidget();
-    this.rowsContainer.addEventListener(
+    this.#rootWidget = this.#registerRootWidget();
+    this.#rowsContainer.addEventListener(
       PromptPaletteDomUI.EVENT.TOGGLE,
-      (event) => this.handleRowToggleEvent(event),
+      (event) => this.#handleRowToggleEvent(event),
     );
-    this.rowsContainer.addEventListener(
+    this.#rowsContainer.addEventListener(
       PromptPaletteDomUI.EVENT.WEIGHT_PLUS,
-      (event) => this.handleRowWeightPlusEvent(event),
+      (event) => this.#handleRowWeightPlusEvent(event),
     );
-    this.rowsContainer.addEventListener(
+    this.#rowsContainer.addEventListener(
       PromptPaletteDomUI.EVENT.WEIGHT_MINUS,
-      (event) => this.handleRowWeightMinusEvent(event),
+      (event) => this.#handleRowWeightMinusEvent(event),
     );
-    this.attachCollapseHook();
-    this.updateRootWidgetVisibility();
-    this.applyMode();
+    this.#attachCollapseHook();
+    this.#updateRootWidgetVisibility();
+    this.#applyMode();
   }
 
   refresh() {
-    if (!this.textWidget) {
-      this.textWidget = findTextWidget(this.node);
-      if (!this.textWidget) return;
+    if (!this.#textWidget) {
+      this.#textWidget = findTextWidget(this.#node);
+      if (!this.#textWidget) return;
     }
-    this.updateRootWidgetVisibility();
-    this.applyMode();
+    this.#updateRootWidgetVisibility();
+    this.#applyMode();
   }
 
-  createRootContainer() {
+  // ========================================
+  // DOM Element Creation
+  // ========================================
+  #createRootContainer() {
     const rootContainer = document.createElement("div");
     rootContainer.style.width = "100%";
     rootContainer.style.display = "flex";
@@ -110,7 +123,7 @@ class PromptPaletteDomUI {
     return rootContainer;
   }
 
-  createRowsContainer() {
+  #createRowsContainer() {
     const rowsContainer = document.createElement("div");
     rowsContainer.style.display = "flex";
     rowsContainer.style.flexDirection = "column";
@@ -120,7 +133,7 @@ class PromptPaletteDomUI {
     return rowsContainer;
   }
 
-  createEmptyMessage() {
+  #createEmptyMessage() {
     const emptyMessage = document.createElement("div");
     emptyMessage.textContent = "No Text";
     emptyMessage.style.display = "none";
@@ -131,7 +144,7 @@ class PromptPaletteDomUI {
     return emptyMessage;
   }
 
-  createButtonContainer() {
+  #createButtonContainer() {
     const buttonContainer = document.createElement("div");
     buttonContainer.style.marginTop = "auto";
     buttonContainer.style.paddingTop = "6px";
@@ -139,7 +152,7 @@ class PromptPaletteDomUI {
     return buttonContainer;
   }
 
-  createToggleButton() {
+  #createToggleButton() {
     const toggleButton = document.createElement("button");
     toggleButton.type = "button";
     toggleButton.style.width = "100%";
@@ -153,8 +166,8 @@ class PromptPaletteDomUI {
     toggleButton.style.cursor = "pointer";
 
     toggleButton.addEventListener("click", () => {
-      this.changeMode(
-        this.mode === PromptPaletteDomUI.MODE.EDIT
+      this.#changeMode(
+        this.#mode === PromptPaletteDomUI.MODE.EDIT
           ? PromptPaletteDomUI.MODE.DISPLAY
           : PromptPaletteDomUI.MODE.EDIT,
       );
@@ -170,167 +183,191 @@ class PromptPaletteDomUI {
     return toggleButton;
   }
 
-  registerRootWidget() {
-    const rootWidget = this.node.addDOMWidget(
+  #registerRootWidget() {
+    const rootWidget = this.#node.addDOMWidget(
       DOM_WIDGET_NAME,
       "promptpalette",
-      this.rootContainer,
+      this.#rootContainer,
       {},
     );
     rootWidget.serialize = false;
     rootWidget.options.margin = 0;
-    this.updateToggleButtonLabel();
+    this.#updateToggleButtonLabel();
     return rootWidget;
   }
 
-  changeMode(mode) {
-    this.mode = mode;
-    this.applyMode();
-    if (this.mode !== PromptPaletteDomUI.MODE.DISPLAY) {
-      this.app.graph.setDirtyCanvas(true);
+  // ========================================
+  // Mode Management
+  // ========================================
+  #changeMode(mode) {
+    this.#mode = mode;
+    this.#applyMode();
+    if (this.#mode !== PromptPaletteDomUI.MODE.DISPLAY) {
+      this.#app.graph.setDirtyCanvas(true);
     }
   }
 
-  applyMode() {
-    this.updateTextWidgetVisibility();
-    this.refreshNodeWidgets();
-    this.callTextWidgetCallback();
-    this.updateToggleButtonLabel();
-    if (this.mode === PromptPaletteDomUI.MODE.DISPLAY) {
-      this.switchToDisplayModeUI();
+  #applyMode() {
+    this.#updateTextWidgetVisibility();
+    this.#refreshNodeWidgets();
+    this.#callTextWidgetCallback();
+    this.#updateToggleButtonLabel();
+    if (this.#mode === PromptPaletteDomUI.MODE.DISPLAY) {
+      this.#switchToDisplayModeUI();
     } else {
-      this.switchToEditModeUI();
+      this.#switchToEditModeUI();
     }
   }
 
-  updateToggleButtonLabel() {
-    if (!this.toggleButton) return;
-    this.toggleButton.textContent =
-      this.mode === PromptPaletteDomUI.MODE.EDIT ? "Save" : "Edit";
+  #updateToggleButtonLabel() {
+    if (!this.#toggleButton) return;
+    this.#toggleButton.textContent =
+      this.#mode === PromptPaletteDomUI.MODE.EDIT ? "Save" : "Edit";
   }
 
-  updateTextWidgetVisibility() {
-    if (!this.textWidget) return;
-    const visibility = this.mode === PromptPaletteDomUI.MODE.EDIT;
+  #updateTextWidgetVisibility() {
+    if (!this.#textWidget) return;
+    const visibility = this.#mode === PromptPaletteDomUI.MODE.EDIT;
     if (visibility) {
-      showWidget(this.textWidget);
+      showWidget(this.#textWidget);
     } else {
-      hideWidget(this.textWidget);
+      hideWidget(this.#textWidget);
     }
   }
 
-  refreshNodeWidgets() {
-    if (!this.node?.widgets) return;
-    this.node.widgets = [...this.node.widgets];
+  #refreshNodeWidgets() {
+    if (!this.#node?.widgets) return;
+    this.#node.widgets = [...this.#node.widgets];
   }
 
-  callTextWidgetCallback() {
-    if (!this.textWidget || typeof this.textWidget.callback !== "function") {
+  #callTextWidgetCallback() {
+    if (!this.#textWidget || typeof this.#textWidget.callback !== "function") {
       return;
     }
-    this.textWidget.callback(this.textWidget.value);
+    this.#textWidget.callback(this.#textWidget.value);
   }
 
-  attachCollapseHook() {
-    const origCollapse = this.node.collapse;
-    this.node.collapse = function () {
+  // ========================================
+  // Collapse Handling
+  // ========================================
+  #attachCollapseHook() {
+    const origCollapse = this.#node.collapse;
+    this.#node.collapse = function () {
       const result = origCollapse
         ? origCollapse.apply(this, arguments)
         : undefined;
-      this.__promptPaletteDomUI?.updateRootWidgetVisibility();
+      this.__promptPaletteDomUI?.#updateRootWidgetVisibility();
       return result;
     };
   }
 
-  updateRootWidgetVisibility() {
-    const isCollapsed = !!(this.node.flags && this.node.flags.collapsed);
+  #updateRootWidgetVisibility() {
+    const isCollapsed = !!(this.#node.flags && this.#node.flags.collapsed);
     const shouldShow = !isCollapsed;
-    this.rootContainer.style.display = shouldShow ? "" : "none";
-    if (this.rootWidget) {
-      this.rootWidget.hidden = !shouldShow;
-      if (this.rootWidget.options) {
-        this.rootWidget.options.hidden = !shouldShow;
+    this.#rootContainer.style.display = shouldShow ? "" : "none";
+    if (this.#rootWidget) {
+      this.#rootWidget.hidden = !shouldShow;
+      if (this.#rootWidget.options) {
+        this.#rootWidget.options.hidden = !shouldShow;
       }
     }
   }
 
-  switchToDisplayModeUI() {
-    const text = this.textWidget.value || "";
-    this.rowsContainer.replaceChildren();
+  // ========================================
+  // UI Mode Switching
+  // ========================================
+  #switchToDisplayModeUI() {
+    const text = this.#textWidget.value || "";
+    this.#rowsContainer.replaceChildren();
     if (!text.trim()) {
       // Empty text: show the empty-state message
-      this.rowsContainer.style.display = "none";
-      this.emptyMessage.style.display = "flex";
+      this.#rowsContainer.style.display = "none";
+      this.#emptyMessage.style.display = "flex";
       return;
     }
     // Non-empty: show rows
-    this.rowsContainer.style.display = "flex";
-    this.emptyMessage.style.display = "none";
+    this.#rowsContainer.style.display = "flex";
+    this.#emptyMessage.style.display = "none";
     // Build row elements
     text.split("\n").forEach((line, index) => {
       const row = new PromptPaletteRow(line, index);
-      this.rowsContainer.append(row.element);
+      this.#rowsContainer.append(row.element);
     });
-    this.app.graph.setDirtyCanvas(true);
+    this.#app.graph.setDirtyCanvas(true);
   }
 
-  switchToEditModeUI() {
-    this.rowsContainer.style.display = "none";
-    this.emptyMessage.style.display = "none";
+  #switchToEditModeUI() {
+    this.#rowsContainer.style.display = "none";
+    this.#emptyMessage.style.display = "none";
   }
 
-  toggleLine(lineIndex) {
-    if (this.mode === PromptPaletteDomUI.MODE.EDIT) return;
-    const textLines = this.textWidget.value.split("\n");
+  // ========================================
+  // Data Operations
+  // ========================================
+  #toggleLine(lineIndex) {
+    if (this.#mode === PromptPaletteDomUI.MODE.EDIT) return;
+    const textLines = this.#textWidget.value.split("\n");
     if (lineIndex < 0 || lineIndex >= textLines.length) return;
 
     const line = new Line(textLines[lineIndex]);
     line.toggleComment();
     textLines[lineIndex] = line.buildText();
-    this.textWidget.value = textLines.join("\n");
-    this.switchToDisplayModeUI();
+    this.#textWidget.value = textLines.join("\n");
+    this.#switchToDisplayModeUI();
   }
 
-  adjustLineWeight(lineIndex, delta) {
-    if (this.mode === PromptPaletteDomUI.MODE.EDIT) return;
-    const textLines = this.textWidget.value.split("\n");
+  #adjustLineWeight(lineIndex, delta) {
+    if (this.#mode === PromptPaletteDomUI.MODE.EDIT) return;
+    const textLines = this.#textWidget.value.split("\n");
     if (lineIndex < 0 || lineIndex >= textLines.length) return;
 
     const line = new Line(textLines[lineIndex]);
     line.adjustWeight(delta);
     textLines[lineIndex] = line.buildText();
-    this.textWidget.value = textLines.join("\n");
-    this.switchToDisplayModeUI();
+    this.#textWidget.value = textLines.join("\n");
+    this.#switchToDisplayModeUI();
   }
 
-  handleRowToggleEvent(event) {
+  // ========================================
+  // Event Handling
+  // ========================================
+  #handleRowToggleEvent(event) {
     const lineIndex = event?.detail?.index;
-    this.toggleLine(lineIndex);
+    this.#toggleLine(lineIndex);
   }
 
-  handleRowWeightPlusEvent(event) {
+  #handleRowWeightPlusEvent(event) {
     const lineIndex = event?.detail?.index;
-    this.adjustLineWeight(lineIndex, 0.1);
+    this.#adjustLineWeight(lineIndex, 0.1);
   }
 
-  handleRowWeightMinusEvent(event) {
+  #handleRowWeightMinusEvent(event) {
     const lineIndex = event?.detail?.index;
-    this.adjustLineWeight(lineIndex, -0.1);
+    this.#adjustLineWeight(lineIndex, -0.1);
   }
 }
 
 class PromptPaletteRow {
+  #line;
+  #index;
+
+  // ========================================
+  // Constructor
+  // ========================================
   constructor(lineText, index) {
-    this.line = new Line(lineText);
-    this.index = index;
-    this.element = this.createElement();
+    this.#line = new Line(lineText);
+    this.#index = index;
+    this.element = this.#createElement();
   }
 
-  createElement() {
-    if (this.line.isPhraseTextEmpty()) {
-      return this.createEmptyRow();
+  // ========================================
+  // DOM Element Creation
+  // ========================================
+  #createElement() {
+    if (this.#line.isPhraseTextEmpty()) {
+      return this.#createEmptyRow();
     }
-    const isCommented = this.line.isCommented;
+    const isCommented = this.#line.isCommented;
     const row = document.createElement("div");
     row.style.height = `${CONFIG.lineHeight}px`;
     row.style.display = "flex";
@@ -341,29 +378,29 @@ class PromptPaletteRow {
     }
 
     // Build Checkbox + Display Text.
-    row.append(this.createCheckbox(isCommented));
-    const displayTextElement = this.createDisplayText();
-    if (this.line.weight !== 1.0) {
+    row.append(this.#createCheckbox(isCommented));
+    const displayTextElement = this.#createDisplayText();
+    if (this.#line.weight !== 1.0) {
       displayTextElement.style.fontWeight = "bold";
     }
     row.append(displayTextElement);
 
-    const weightButtonsContainer = this.createWeightButtonsContainer();
-    if (this.line.weight !== 1.0) {
+    const weightButtonsContainer = this.#createWeightButtonsContainer();
+    if (this.#line.weight !== 1.0) {
       weightButtonsContainer.append(
-        this.createWeightLabel(this.line.getWeightText()),
+        this.#createWeightLabel(this.#line.getWeightText()),
       );
     }
     weightButtonsContainer.append(
-      this.createWeightButton("-", () => this.onWeightMinusClick()),
-      this.createWeightButton("+", () => this.onWeightPlusClick()),
+      this.#createWeightButton("-", () => this.#onWeightMinusClick()),
+      this.#createWeightButton("+", () => this.#onWeightPlusClick()),
     );
     row.append(weightButtonsContainer);
 
     return row;
   }
 
-  createCheckbox(isCommented) {
+  #createCheckbox(isCommented) {
     const checkbox = document.createElement("button");
     checkbox.type = "button";
     checkbox.style.width = `${CONFIG.checkboxSize}px`;
@@ -383,14 +420,14 @@ class PromptPaletteRow {
       checkbox.style.background = "var(--input-text)";
     }
     checkbox.addEventListener("click", () => {
-      this.onToggleClick();
+      this.#onToggleClick();
     });
     return checkbox;
   }
 
-  createDisplayText() {
+  #createDisplayText() {
     const displayTextElement = document.createElement("span");
-    displayTextElement.textContent = this.line.getDisplayText();
+    displayTextElement.textContent = this.#line.getDisplayText();
     displayTextElement.style.flex = "1";
     displayTextElement.style.overflow = "hidden";
     displayTextElement.style.textOverflow = "ellipsis";
@@ -398,7 +435,7 @@ class PromptPaletteRow {
     return displayTextElement;
   }
 
-  createWeightButtonsContainer() {
+  #createWeightButtonsContainer() {
     const weightButtonsContainer = document.createElement("div");
     weightButtonsContainer.style.display = "inline-flex";
     weightButtonsContainer.style.alignItems = "center";
@@ -407,7 +444,7 @@ class PromptPaletteRow {
     return weightButtonsContainer;
   }
 
-  createWeightLabel(weightText) {
+  #createWeightLabel(weightText) {
     const label = document.createElement("span");
     label.textContent = weightText;
     label.style.width = `${CONFIG.weightLabelWidth}px`;
@@ -415,7 +452,7 @@ class PromptPaletteRow {
     return label;
   }
 
-  createWeightButton(symbol, onClick) {
+  #createWeightButton(symbol, onClick) {
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = symbol;
@@ -443,28 +480,7 @@ class PromptPaletteRow {
     return button;
   }
 
-  onToggleClick() {
-    this.dispatchEvent(PromptPaletteDomUI.EVENT.TOGGLE);
-  }
-
-  onWeightPlusClick() {
-    this.dispatchEvent(PromptPaletteDomUI.EVENT.WEIGHT_PLUS);
-  }
-
-  onWeightMinusClick() {
-    this.dispatchEvent(PromptPaletteDomUI.EVENT.WEIGHT_MINUS);
-  }
-
-  dispatchEvent(type) {
-    this.element.dispatchEvent(
-      new CustomEvent(type, {
-        bubbles: true,
-        detail: { index: this.index },
-      }),
-    );
-  }
-
-  createEmptyRow() {
+  #createEmptyRow() {
     const emptyRow = document.createElement("div");
     emptyRow.style.height = `${CONFIG.lineHeight}px`;
     emptyRow.style.display = "flex";
@@ -472,5 +488,29 @@ class PromptPaletteRow {
     emptyRow.style.gap = `${CONFIG.spaceBetweenCheckboxAndText}px`;
     emptyRow.style.pointerEvents = "none";
     return emptyRow;
+  }
+
+  // ========================================
+  // Event Handling
+  // ========================================
+  #onToggleClick() {
+    this.#dispatchEvent(PromptPaletteDomUI.EVENT.TOGGLE);
+  }
+
+  #onWeightPlusClick() {
+    this.#dispatchEvent(PromptPaletteDomUI.EVENT.WEIGHT_PLUS);
+  }
+
+  #onWeightMinusClick() {
+    this.#dispatchEvent(PromptPaletteDomUI.EVENT.WEIGHT_MINUS);
+  }
+
+  #dispatchEvent(type) {
+    this.element.dispatchEvent(
+      new CustomEvent(type, {
+        bubbles: true,
+        detail: { index: this.#index },
+      }),
+    );
   }
 }
