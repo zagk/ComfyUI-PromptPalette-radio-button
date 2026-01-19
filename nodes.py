@@ -38,7 +38,10 @@ class PromptPalette:
         result = "\n".join(filtered_lines)
 
         if prefix:
-            result = prefix + "\n" + result
+            if result:
+                result = prefix + "\n" + result
+            else:
+                result = prefix
 
         return (result,)
 
