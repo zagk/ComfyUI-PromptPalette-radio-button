@@ -1,7 +1,9 @@
 import { Line } from "./line.js";
 import {
   calculateNodeHeight,
+  findDelimiterWidget,
   findTextWidget,
+  hideWidget,
   hideWidgetAndKeepSpace,
   showWidget,
 } from "./ui_utils.js";
@@ -19,6 +21,14 @@ const CONFIG = {
   weightButtonSize: 16,
   weightButtonGap: 4,
 };
+
+const VALID_DELIMITERS = [
+  "comma + line break",
+  "comma",
+  "line break",
+  "space",
+];
+const DEFAULT_DELIMITER = VALID_DELIMITERS[0];
 
 let colorCache = null;
 
@@ -61,6 +71,11 @@ export function setupCanvasUI(nodeType, app) {
   };
 }
 
+export function refreshCanvasUI(node) {
+  if (!node || !node.__promptPaletteCanvasUI) return;
+  node.__promptPaletteCanvasUI.refresh();
+}
+
 class PromptPaletteCanvasUI {
   static MODE = Object.freeze({
     EDIT: "edit",
@@ -74,6 +89,7 @@ class PromptPaletteCanvasUI {
 
   #node;
   #textWidget;
+  #delimiterWidget;
   #app;
   #mode;
   #clickableAreas;
@@ -82,14 +98,27 @@ class PromptPaletteCanvasUI {
   constructor(node, textWidget, app) {
     this.#node = node;
     this.#textWidget = textWidget;
+    this.#delimiterWidget = findDelimiterWidget(node);
     this.#app = app;
     this.#mode = PromptPaletteCanvasUI.MODE.DISPLAY;
     this.#clickableAreas = [];
     this.#toggleButton = null;
 
-    this.#hideTextWidget();
+    this.#hideWidgets();
     this.#addToggleButton();
     this.#attachClickHandler();
+  }
+
+  #validateDelimiterValue() {
+    if (!this.#delimiterWidget) return;
+    if (!VALID_DELIMITERS.includes(this.#delimiterWidget.value)) {
+      this.#delimiterWidget.value = DEFAULT_DELIMITER;
+    }
+  }
+
+  refresh() {
+    this.#validateDelimiterValue();
+    this.#app.graph.setDirtyCanvas(true);
   }
 
   draw(ctx) {
@@ -108,17 +137,18 @@ class PromptPaletteCanvasUI {
   }
 
   #applyMode() {
-    this.#updateTextWidgetVisibility();
+    this.#updateWidgetVisibility();
     this.#updateToggleButtonLabel();
     this.#app.graph.setDirtyCanvas(true);
   }
 
-  #updateTextWidgetVisibility() {
-    if (!this.#textWidget) return;
+  #updateWidgetVisibility() {
     if (this.#mode === PromptPaletteCanvasUI.MODE.EDIT) {
-      showWidget(this.#textWidget);
+      if (this.#textWidget) showWidget(this.#textWidget);
+      if (this.#delimiterWidget) showWidget(this.#delimiterWidget);
     } else {
-      hideWidgetAndKeepSpace(this.#textWidget);
+      if (this.#textWidget) hideWidgetAndKeepSpace(this.#textWidget);
+      if (this.#delimiterWidget) hideWidget(this.#delimiterWidget);
     }
   }
 
@@ -131,8 +161,9 @@ class PromptPaletteCanvasUI {
   // ========================================
   // Widget Management
   // ========================================
-  #hideTextWidget() {
+  #hideWidgets() {
     hideWidgetAndKeepSpace(this.#textWidget);
+    hideWidget(this.#delimiterWidget);
   }
 
   #addToggleButton() {
@@ -148,6 +179,7 @@ class PromptPaletteCanvasUI {
         );
       },
     );
+    this.#toggleButton.serialize = false;
 
     const spacer = this.#node.addWidget("text", "", "");
     spacer.computeSize = () => [0, 6];

@@ -1,5 +1,5 @@
 import { app } from "../../scripts/app.js";
-import { setupCanvasUI } from "./canvas_ui.js";
+import { refreshCanvasUI, setupCanvasUI } from "./canvas_ui.js";
 import { refreshDomUI, setupDomUI } from "./dom_ui.js";
 
 app.registerExtension({
@@ -22,6 +22,8 @@ app.registerExtension({
     }
     if (isVueNodesMode()) {
       refreshDomUI(node);
+    } else {
+      refreshCanvasUI(node);
     }
   },
 });

@@ -1,4 +1,9 @@
-import { findTextWidget, hideWidget, showWidget } from "./ui_utils.js";
+import {
+  findDelimiterWidget,
+  findTextWidget,
+  hideWidget,
+  showWidget,
+} from "./ui_utils.js";
 import { Line } from "./line.js";
 
 const CONFIG = {
@@ -9,6 +14,14 @@ const CONFIG = {
   weightButtonSize: 18,
   weightLabelWidth: 30,
 };
+
+const VALID_DELIMITERS = [
+  "comma + line break",
+  "comma",
+  "line break",
+  "space",
+];
+const DEFAULT_DELIMITER = VALID_DELIMITERS[0];
 
 const DOM_WIDGET_NAME = "promptpalette_ui";
 
@@ -85,6 +98,7 @@ class PromptPaletteDomUI {
 
   #node;
   #textWidget;
+  #delimiterWidget;
   #app;
   #mode;
   #rootContainer;
@@ -96,6 +110,7 @@ class PromptPaletteDomUI {
   constructor(node, textWidget, app) {
     this.#node = node;
     this.#textWidget = textWidget;
+    this.#delimiterWidget = findDelimiterWidget(node);
     this.#app = app;
     this.#mode = PromptPaletteDomUI.MODE.DISPLAY;
 
@@ -130,12 +145,16 @@ class PromptPaletteDomUI {
   }
 
   refresh() {
-    if (!this.#textWidget) {
-      this.#textWidget = findTextWidget(this.#node);
-      if (!this.#textWidget) return;
-    }
+    this.#validateDelimiterValue();
     this.#updateRootWidgetVisibility();
     this.#applyMode();
+  }
+
+  #validateDelimiterValue() {
+    if (!this.#delimiterWidget) return;
+    if (!VALID_DELIMITERS.includes(this.#delimiterWidget.value)) {
+      this.#delimiterWidget.value = DEFAULT_DELIMITER;
+    }
   }
 
   // ========================================
@@ -237,7 +256,7 @@ class PromptPaletteDomUI {
   }
 
   #applyMode() {
-    this.#updateTextWidgetVisibility();
+    this.#updateWidgetVisibility();
     this.#refreshNodeWidgets();
     this.#callTextWidgetCallback();
     this.#updateToggleButtonLabel();
@@ -254,13 +273,14 @@ class PromptPaletteDomUI {
       this.#mode === PromptPaletteDomUI.MODE.EDIT ? "Save" : "Edit";
   }
 
-  #updateTextWidgetVisibility() {
-    if (!this.#textWidget) return;
-    const visibility = this.#mode === PromptPaletteDomUI.MODE.EDIT;
-    if (visibility) {
-      showWidget(this.#textWidget);
+  #updateWidgetVisibility() {
+    const visible = this.#mode === PromptPaletteDomUI.MODE.EDIT;
+    if (visible) {
+      if (this.#textWidget) showWidget(this.#textWidget);
+      if (this.#delimiterWidget) showWidget(this.#delimiterWidget);
     } else {
-      hideWidget(this.#textWidget);
+      if (this.#textWidget) hideWidget(this.#textWidget);
+      if (this.#delimiterWidget) hideWidget(this.#delimiterWidget);
     }
   }
 

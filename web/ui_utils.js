@@ -8,6 +8,16 @@ export function findTextWidget(node) {
   return null;
 }
 
+export function findDelimiterWidget(node) {
+  if (!node || !node.widgets) return null;
+  for (const w of node.widgets) {
+    if (w.name === "delimiter") {
+      return w;
+    }
+  }
+  return null;
+}
+
 export function showWidget(widget) {
   applyWidgetVisibility(widget, true, false);
 }
