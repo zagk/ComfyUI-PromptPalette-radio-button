@@ -9,7 +9,15 @@ class PromptPalette:
                 "text": (
                     "STRING",
                     {"default": "", "multiline": True},
-                )
+                ),
+                "delimiter": (
+                    ["comma", "space", "none"],
+                    {"default": "comma"},
+                ),
+                "line_break": (
+                    "BOOLEAN",
+                    {"default": True},
+                ),
             },
             "optional": {"prefix": ("STRING", {"forceInput": True})},
         }
@@ -18,7 +26,7 @@ class PromptPalette:
     FUNCTION = "process"
     CATEGORY = "utils"
 
-    def process(self, text, prefix=None):
+    def process(self, text, delimiter, line_break, prefix=None):
         lines = text.split("\n")
         filtered_lines = []
         for line in lines:
@@ -31,15 +39,27 @@ class PromptPalette:
             # Remove inline comments
             if "//" in line:
                 line = line.split("//")[0].rstrip()
-            # Add comma
-            if not line.strip().endswith(","):
+            # Add suffix based on delimiter setting
+            if delimiter == "comma":
                 line = line + ", "
+            elif delimiter == "space":
+                line = line + " "
+            # "none" adds nothing
             filtered_lines.append(line)
-        result = "\n".join(filtered_lines)
 
+        # Join lines based on line_break setting
+        if line_break:
+            result = "\n".join(filtered_lines)
+        else:
+            result = "".join(filtered_lines)
+
+        # Add prefix if provided
         if prefix:
             if result:
-                result = prefix + "\n" + result
+                if line_break:
+                    result = prefix + "\n" + result
+                else:
+                    result = prefix + result
             else:
                 result = prefix
 

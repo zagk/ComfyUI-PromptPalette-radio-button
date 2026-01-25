@@ -2,14 +2,14 @@
 
 A custom node for ComfyUI that makes prompt editing easier by allowing phrase switching with just mouse operations
 
-![Example](examples/example-01.png)
+![Example](examples/prompt-palette.png)
 
 ## Features
 
-- **Toggle phrases** with checkboxes
-- **Adjust phrase weights** using +/- buttons
-- **Prefix input** to combine with generated text
-- **Output** as properly formatted, comma-separated text
+- **Enable/disable phrases** with checkboxes
+- **Adjust prompt weights** using +/- buttons
+- **Combine with other prompts** using prefix input
+- **Customize output format** with delimiter and line break options
 
 ## Installation
 
@@ -18,20 +18,27 @@ A custom node for ComfyUI that makes prompt editing easier by allowing phrase sw
 
 ## Usage
 
-1. **Add the node**: Add the `Prompt Palette` node to your workflow
-2. **Edit text**:
+1. **Add node**: Find `Prompt Palette` in the node menu
+2. **Edit phrases**:
    - Click the **Edit** button to switch to edit mode
-   - Enter one phrase per line
-     ![Edit mode example](examples/example-02.png)
+   - Enter one phrase per line<br />
+     <img src="examples/edit-phrases.png" alt="Edit phrases" width="320px" />
    - Click the **Save** button to complete editing
-3. **Control phrases**:
-   - **Toggle checkboxes** in display mode to enable/disable phrases
-   - **Adjust phrase weights** using +/- buttons
+3. **Toggle phrases and adjust weights**:
+   - **Toggle checkboxes** to enable/disable phrases
+   - **Adjust prompt weights** using +/- buttons<br />
+     <img src="examples/toggle-and-weight.png" alt="Toggle checkboxes and adjust prompt weights" width="320px" />
 4. **Output**:
-   - Selected phrases are output as comma-separated prompt text
-     ![Output example](examples/example-03.png)
+   - By default, selected phrases are output as comma-separated prompt text<br />
+     <img src="examples/output.png" alt="Output" width="540px" />
+   - Delimiter and line break settings can be changed in edit mode<br />
+     <img src="examples/output-format.png" alt="Output Format" width="400px" />
 
 ## Changelog
+
+### v1.3.0
+- Added delimiter widget to separate phrases with comma, space, or nothing
+- Added line_break widget to output as single line or multiple lines
 
 ### v1.2.0
 - Support for ComfyUI Nodes 2.0

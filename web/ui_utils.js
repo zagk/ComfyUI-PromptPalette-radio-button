@@ -1,11 +1,41 @@
 export function findTextWidget(node) {
+  return findWidgetByName(node, "text");
+}
+
+export function findDelimiterWidget(node) {
+  return findWidgetByName(node, "delimiter");
+}
+
+export function findLineBreakWidget(node) {
+  return findWidgetByName(node, "line_break");
+}
+
+function findWidgetByName(node, name) {
   if (!node || !node.widgets) return null;
   for (const w of node.widgets) {
-    if (w.name === "text") {
+    if (w.name === name) {
       return w;
     }
   }
   return null;
+}
+
+export const VALID_DELIMITERS = ["comma", "space", "none"];
+
+export const DEFAULT_DELIMITER = VALID_DELIMITERS[0];
+
+export function validateDelimiterValue(delimiterWidget) {
+  if (!delimiterWidget) return;
+  if (!VALID_DELIMITERS.includes(delimiterWidget.value)) {
+    delimiterWidget.value = DEFAULT_DELIMITER;
+  }
+}
+
+export function validateLineBreakValue(lineBreakWidget) {
+  if (!lineBreakWidget) return;
+  if (typeof lineBreakWidget.value !== "boolean") {
+    lineBreakWidget.value = true;
+  }
 }
 
 export function showWidget(widget) {

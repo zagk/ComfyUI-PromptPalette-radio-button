@@ -1,10 +1,16 @@
 import { Line } from "./line.js";
 import {
   calculateNodeHeight,
+  findDelimiterWidget,
+  findLineBreakWidget,
   findTextWidget,
+  hideWidget,
   hideWidgetAndKeepSpace,
   showWidget,
+  validateDelimiterValue,
+  validateLineBreakValue,
 } from "./ui_utils.js";
+import { TextLines } from "./text_lines.js";
 
 const CONFIG = {
   minNodeHeight: 80,
@@ -35,7 +41,7 @@ export function setupCanvasUI(nodeType, app) {
     if (origOnNodeCreated) {
       origOnNodeCreated.apply(this, arguments);
     }
-    // Initialize Canvas UI for new nodes (caller ensures Nodes 1.0 mode).
+    // Initialize Canvas UI for new nodes
     if (this.__nodeInitialized) {
       return;
     }
@@ -51,12 +57,20 @@ export function setupCanvasUI(nodeType, app) {
     }
   };
 
+  const origOnConfigure = nodeType.prototype.onConfigure;
+  nodeType.prototype.onConfigure = function (data) {
+    if (origOnConfigure) {
+      origOnConfigure.call(this, data);
+    }
+    validateDelimiterValue(findDelimiterWidget(this));
+    validateLineBreakValue(findLineBreakWidget(this));
+  };
+
   const origOnDrawForeground = nodeType.prototype.onDrawForeground;
   nodeType.prototype.onDrawForeground = function (ctx) {
     if (origOnDrawForeground) {
       origOnDrawForeground.call(this, ctx);
     }
-    // Render the custom list UI in display mode.
     this.__promptPaletteCanvasUI?.draw(ctx);
   };
 }
@@ -67,13 +81,15 @@ class PromptPaletteCanvasUI {
     DISPLAY: "display",
   });
   static ACTION = Object.freeze({
-    TOGGLE: "toggle",
+    TOGGLE_COMMENT: "toggle_comment",
     WEIGHT_PLUS: "weight_plus",
     WEIGHT_MINUS: "weight_minus",
   });
 
   #node;
   #textWidget;
+  #delimiterWidget;
+  #lineBreakWidget;
   #app;
   #mode;
   #clickableAreas;
@@ -82,12 +98,16 @@ class PromptPaletteCanvasUI {
   constructor(node, textWidget, app) {
     this.#node = node;
     this.#textWidget = textWidget;
+    this.#delimiterWidget = findDelimiterWidget(node);
+    this.#lineBreakWidget = findLineBreakWidget(node);
     this.#app = app;
     this.#mode = PromptPaletteCanvasUI.MODE.DISPLAY;
     this.#clickableAreas = [];
     this.#toggleButton = null;
 
-    this.#hideTextWidget();
+    hideWidgetAndKeepSpace(this.#textWidget);
+    hideWidget(this.#delimiterWidget);
+    hideWidget(this.#lineBreakWidget);
     this.#addToggleButton();
     this.#attachClickHandler();
   }
@@ -104,21 +124,20 @@ class PromptPaletteCanvasUI {
   // ========================================
   #changeMode(mode) {
     this.#mode = mode;
-    this.#applyMode();
-  }
-
-  #applyMode() {
-    this.#updateTextWidgetVisibility();
+    this.#updateWidgetVisibility();
     this.#updateToggleButtonLabel();
     this.#app.graph.setDirtyCanvas(true);
   }
 
-  #updateTextWidgetVisibility() {
-    if (!this.#textWidget) return;
+  #updateWidgetVisibility() {
     if (this.#mode === PromptPaletteCanvasUI.MODE.EDIT) {
-      showWidget(this.#textWidget);
+      if (this.#textWidget) showWidget(this.#textWidget);
+      if (this.#delimiterWidget) showWidget(this.#delimiterWidget);
+      if (this.#lineBreakWidget) showWidget(this.#lineBreakWidget);
     } else {
-      hideWidgetAndKeepSpace(this.#textWidget);
+      if (this.#textWidget) hideWidgetAndKeepSpace(this.#textWidget);
+      if (this.#delimiterWidget) hideWidget(this.#delimiterWidget);
+      if (this.#lineBreakWidget) hideWidget(this.#lineBreakWidget);
     }
   }
 
@@ -131,10 +150,6 @@ class PromptPaletteCanvasUI {
   // ========================================
   // Widget Management
   // ========================================
-  #hideTextWidget() {
-    hideWidgetAndKeepSpace(this.#textWidget);
-  }
-
   #addToggleButton() {
     this.#toggleButton = this.#node.addWidget(
       "button",
@@ -148,6 +163,7 @@ class PromptPaletteCanvasUI {
         );
       },
     );
+    this.#toggleButton.serialize = false;
 
     const spacer = this.#node.addWidget("text", "", "");
     spacer.computeSize = () => [0, 6];
@@ -192,8 +208,8 @@ class PromptPaletteCanvasUI {
 
   #handleClickableAreaAction(area) {
     switch (area.action) {
-      case PromptPaletteCanvasUI.ACTION.TOGGLE:
-        this.#toggleLine(area.lineIndex);
+      case PromptPaletteCanvasUI.ACTION.TOGGLE_COMMENT:
+        this.#toggleLineComment(area.lineIndex);
         break;
       case PromptPaletteCanvasUI.ACTION.WEIGHT_PLUS:
         this.#adjustLineWeight(area.lineIndex, 0.1);
@@ -207,25 +223,17 @@ class PromptPaletteCanvasUI {
   // ========================================
   // Data Operations
   // ========================================
-  #toggleLine(lineIndex) {
-    const textLines = this.#textWidget.value.split("\n");
-    if (lineIndex < 0 || lineIndex >= textLines.length) return;
-
-    const line = new Line(textLines[lineIndex]);
-    line.toggleCommentedOut();
-    textLines[lineIndex] = line.buildText();
-    this.#textWidget.value = textLines.join("\n");
+  #toggleLineComment(lineIndex) {
+    const textLines = new TextLines(this.#textWidget.value);
+    textLines.toggleCommentAt(lineIndex);
+    this.#textWidget.value = textLines.toString();
     this.#app.graph.setDirtyCanvas(true);
   }
 
   #adjustLineWeight(lineIndex, delta) {
-    const textLines = this.#textWidget.value.split("\n");
-    if (lineIndex < 0 || lineIndex >= textLines.length) return;
-
-    const line = new Line(textLines[lineIndex]);
-    line.adjustWeight(delta);
-    textLines[lineIndex] = line.buildText();
-    this.#textWidget.value = textLines.join("\n");
+    const textLines = new TextLines(this.#textWidget.value);
+    textLines.adjustWeightAt(lineIndex, delta);
+    this.#textWidget.value = textLines.toString();
     this.#app.graph.setDirtyCanvas(true);
   }
 
@@ -286,9 +294,8 @@ class PromptPaletteCanvasUI {
       y: checkboxY,
       w: checkboxW,
       h: checkboxH,
-      type: "checkbox",
       lineIndex: index,
-      action: PromptPaletteCanvasUI.ACTION.TOGGLE,
+      action: PromptPaletteCanvasUI.ACTION.TOGGLE_COMMENT,
     });
 
     if (line.commentedOut) {
@@ -414,7 +421,6 @@ class PromptPaletteCanvasUI {
       y: y,
       w: buttonSize,
       h: buttonSize,
-      type: "weight_button",
       lineIndex: lineIndex,
       action: action,
     });

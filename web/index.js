@@ -1,6 +1,6 @@
 import { app } from "../../scripts/app.js";
 import { setupCanvasUI } from "./canvas_ui.js";
-import { refreshDomUI, setupDomUI } from "./dom_ui.js";
+import { setupDomUI } from "./dom_ui.js";
 
 app.registerExtension({
   name: "PromptPalette",
@@ -12,16 +12,6 @@ app.registerExtension({
       } else {
         setupCanvasUI(nodeType, app);
       }
-    }
-  },
-
-  loadedGraphNode(node, app) {
-    const nodeType = node?.comfyClass || node?.type;
-    if (nodeType !== "PromptPalette") {
-      return;
-    }
-    if (isVueNodesMode()) {
-      refreshDomUI(node);
     }
   },
 });

@@ -1,5 +1,14 @@
-import { findTextWidget, hideWidget, showWidget } from "./ui_utils.js";
+import {
+  findDelimiterWidget,
+  findLineBreakWidget,
+  findTextWidget,
+  hideWidget,
+  showWidget,
+  validateDelimiterValue,
+  validateLineBreakValue,
+} from "./ui_utils.js";
 import { Line } from "./line.js";
+import { TextLines } from "./text_lines.js";
 
 const CONFIG = {
   lineHeight: 24,
@@ -65,11 +74,16 @@ export function setupDomUI(nodeType, app) {
 
     this.__promptPaletteDomUI = new PromptPaletteDomUI(this, textWidget, app);
   };
-}
 
-export function refreshDomUI(node) {
-  if (!node || !node.__promptPaletteDomUI) return;
-  node.__promptPaletteDomUI.refresh();
+  const origOnConfigure = nodeType.prototype.onConfigure;
+  nodeType.prototype.onConfigure = function (data) {
+    if (origOnConfigure) {
+      origOnConfigure.call(this, data);
+    }
+    validateDelimiterValue(findDelimiterWidget(this));
+    validateLineBreakValue(findLineBreakWidget(this));
+    this.__promptPaletteDomUI?.requestRedraw();
+  };
 }
 
 class PromptPaletteDomUI {
@@ -78,13 +92,15 @@ class PromptPaletteDomUI {
     DISPLAY: "display",
   });
   static EVENT = Object.freeze({
-    TOGGLE: "toggle",
+    TOGGLE_COMMENT: "toggle_comment",
     WEIGHT_PLUS: "weight_plus",
     WEIGHT_MINUS: "weight_minus",
   });
 
   #node;
   #textWidget;
+  #delimiterWidget;
+  #lineBreakWidget;
   #app;
   #mode;
   #rootContainer;
@@ -96,6 +112,8 @@ class PromptPaletteDomUI {
   constructor(node, textWidget, app) {
     this.#node = node;
     this.#textWidget = textWidget;
+    this.#delimiterWidget = findDelimiterWidget(node);
+    this.#lineBreakWidget = findLineBreakWidget(node);
     this.#app = app;
     this.#mode = PromptPaletteDomUI.MODE.DISPLAY;
 
@@ -113,7 +131,7 @@ class PromptPaletteDomUI {
     );
     this.#rootWidget = this.#registerRootWidget();
     this.#rowsContainer.addEventListener(
-      PromptPaletteDomUI.EVENT.TOGGLE,
+      PromptPaletteDomUI.EVENT.TOGGLE_COMMENT,
       (event) => this.#handleRowToggleEvent(event),
     );
     this.#rowsContainer.addEventListener(
@@ -126,16 +144,16 @@ class PromptPaletteDomUI {
     );
     this.#attachCollapseHook();
     this.#updateRootWidgetVisibility();
-    this.#applyMode();
+    hideWidget(this.#textWidget);
+    hideWidget(this.#delimiterWidget);
+    hideWidget(this.#lineBreakWidget);
   }
 
-  refresh() {
-    if (!this.#textWidget) {
-      this.#textWidget = findTextWidget(this.#node);
-      if (!this.#textWidget) return;
+  // Called after widget values are restored (workflow load, copy/paste).
+  requestRedraw() {
+    if (this.#mode === PromptPaletteDomUI.MODE.DISPLAY) {
+      this.#buildDisplayRows();
     }
-    this.#updateRootWidgetVisibility();
-    this.#applyMode();
   }
 
   // ========================================
@@ -156,7 +174,7 @@ class PromptPaletteDomUI {
 
   #createRowsContainer() {
     const rowsContainer = document.createElement("div");
-    rowsContainer.style.display = "flex";
+    rowsContainer.style.display = "none";
     rowsContainer.style.flexDirection = "column";
     rowsContainer.style.gap = "4px";
     rowsContainer.style.flex = "1 1 auto";
@@ -186,6 +204,7 @@ class PromptPaletteDomUI {
   #createToggleButton() {
     const toggleButton = document.createElement("button");
     toggleButton.type = "button";
+    toggleButton.textContent = "Edit";
     toggleButton.style.width = "100%";
     toggleButton.style.border = "0";
     toggleButton.style.borderRadius = "6px";
@@ -221,7 +240,6 @@ class PromptPaletteDomUI {
     );
     rootWidget.serialize = false;
     rootWidget.options.margin = 0;
-    this.#updateToggleButtonLabel();
     return rootWidget;
   }
 
@@ -230,38 +248,27 @@ class PromptPaletteDomUI {
   // ========================================
   #changeMode(mode) {
     this.#mode = mode;
-    this.#applyMode();
-    if (this.#mode !== PromptPaletteDomUI.MODE.DISPLAY) {
-      this.#app.graph.setDirtyCanvas(true);
-    }
-  }
 
-  #applyMode() {
-    this.#updateTextWidgetVisibility();
+    if (mode === PromptPaletteDomUI.MODE.EDIT) {
+      // Switch to Edit mode
+      showWidget(this.#textWidget);
+      showWidget(this.#delimiterWidget);
+      showWidget(this.#lineBreakWidget);
+      this.#rowsContainer.style.display = "none";
+      this.#emptyMessage.style.display = "none";
+      this.#toggleButton.textContent = "Save";
+      this.#app.graph.setDirtyCanvas(true);
+    } else {
+      // Switch to Display mode
+      hideWidget(this.#textWidget);
+      hideWidget(this.#delimiterWidget);
+      hideWidget(this.#lineBreakWidget);
+      this.#buildDisplayRows();
+      this.#toggleButton.textContent = "Edit";
+    }
+
     this.#refreshNodeWidgets();
     this.#callTextWidgetCallback();
-    this.#updateToggleButtonLabel();
-    if (this.#mode === PromptPaletteDomUI.MODE.DISPLAY) {
-      this.#switchToDisplayModeUI();
-    } else {
-      this.#switchToEditModeUI();
-    }
-  }
-
-  #updateToggleButtonLabel() {
-    if (!this.#toggleButton) return;
-    this.#toggleButton.textContent =
-      this.#mode === PromptPaletteDomUI.MODE.EDIT ? "Save" : "Edit";
-  }
-
-  #updateTextWidgetVisibility() {
-    if (!this.#textWidget) return;
-    const visibility = this.#mode === PromptPaletteDomUI.MODE.EDIT;
-    if (visibility) {
-      showWidget(this.#textWidget);
-    } else {
-      hideWidget(this.#textWidget);
-    }
   }
 
   #refreshNodeWidgets() {
@@ -303,9 +310,9 @@ class PromptPaletteDomUI {
   }
 
   // ========================================
-  // UI Mode Switching
+  // Display UI Building
   // ========================================
-  #switchToDisplayModeUI() {
+  #buildDisplayRows() {
     const text = this.#textWidget.value || "";
     this.#rowsContainer.replaceChildren();
     if (!text.trim()) {
@@ -325,36 +332,23 @@ class PromptPaletteDomUI {
     this.#app.graph.setDirtyCanvas(true);
   }
 
-  #switchToEditModeUI() {
-    this.#rowsContainer.style.display = "none";
-    this.#emptyMessage.style.display = "none";
-  }
-
   // ========================================
   // Data Operations
   // ========================================
-  #toggleLine(lineIndex) {
+  #toggleLineComment(lineIndex) {
     if (this.#mode === PromptPaletteDomUI.MODE.EDIT) return;
-    const textLines = this.#textWidget.value.split("\n");
-    if (lineIndex < 0 || lineIndex >= textLines.length) return;
-
-    const line = new Line(textLines[lineIndex]);
-    line.toggleCommentedOut();
-    textLines[lineIndex] = line.buildText();
-    this.#textWidget.value = textLines.join("\n");
-    this.#switchToDisplayModeUI();
+    const textLines = new TextLines(this.#textWidget.value);
+    textLines.toggleCommentAt(lineIndex);
+    this.#textWidget.value = textLines.toString();
+    this.#buildDisplayRows();
   }
 
   #adjustLineWeight(lineIndex, delta) {
     if (this.#mode === PromptPaletteDomUI.MODE.EDIT) return;
-    const textLines = this.#textWidget.value.split("\n");
-    if (lineIndex < 0 || lineIndex >= textLines.length) return;
-
-    const line = new Line(textLines[lineIndex]);
-    line.adjustWeight(delta);
-    textLines[lineIndex] = line.buildText();
-    this.#textWidget.value = textLines.join("\n");
-    this.#switchToDisplayModeUI();
+    const textLines = new TextLines(this.#textWidget.value);
+    textLines.adjustWeightAt(lineIndex, delta);
+    this.#textWidget.value = textLines.toString();
+    this.#buildDisplayRows();
   }
 
   // ========================================
@@ -362,7 +356,7 @@ class PromptPaletteDomUI {
   // ========================================
   #handleRowToggleEvent(event) {
     const lineIndex = event?.detail?.index;
-    this.#toggleLine(lineIndex);
+    this.#toggleLineComment(lineIndex);
   }
 
   #handleRowWeightPlusEvent(event) {
@@ -525,7 +519,7 @@ class PromptPaletteRow {
   // Event Handling
   // ========================================
   #onToggleClick() {
-    this.#dispatchEvent(PromptPaletteDomUI.EVENT.TOGGLE);
+    this.#dispatchEvent(PromptPaletteDomUI.EVENT.TOGGLE_COMMENT);
   }
 
   #onWeightPlusClick() {
