@@ -3,6 +3,7 @@ import {
   findTextWidget,
   hideWidget,
   showWidget,
+  validateDelimiterValue,
 } from "./ui_utils.js";
 import { Line } from "./line.js";
 
@@ -14,14 +15,6 @@ const CONFIG = {
   weightButtonSize: 18,
   weightLabelWidth: 30,
 };
-
-const VALID_DELIMITERS = [
-  "comma + line break",
-  "comma",
-  "line break",
-  "space",
-];
-const DEFAULT_DELIMITER = VALID_DELIMITERS[0];
 
 const DOM_WIDGET_NAME = "promptpalette_ui";
 
@@ -78,11 +71,15 @@ export function setupDomUI(nodeType, app) {
 
     this.__promptPaletteDomUI = new PromptPaletteDomUI(this, textWidget, app);
   };
-}
 
-export function refreshDomUI(node) {
-  if (!node || !node.__promptPaletteDomUI) return;
-  node.__promptPaletteDomUI.refresh();
+  const origOnConfigure = nodeType.prototype.onConfigure;
+  nodeType.prototype.onConfigure = function (data) {
+    if (origOnConfigure) {
+      origOnConfigure.call(this, data);
+    }
+    validateDelimiterValue(findDelimiterWidget(this));
+    this.__promptPaletteDomUI?.requestRedraw();
+  };
 }
 
 class PromptPaletteDomUI {
@@ -141,19 +138,14 @@ class PromptPaletteDomUI {
     );
     this.#attachCollapseHook();
     this.#updateRootWidgetVisibility();
-    this.#applyMode();
+    hideWidget(this.#textWidget);
+    hideWidget(this.#delimiterWidget);
   }
 
-  refresh() {
-    this.#validateDelimiterValue();
-    this.#updateRootWidgetVisibility();
-    this.#applyMode();
-  }
-
-  #validateDelimiterValue() {
-    if (!this.#delimiterWidget) return;
-    if (!VALID_DELIMITERS.includes(this.#delimiterWidget.value)) {
-      this.#delimiterWidget.value = DEFAULT_DELIMITER;
+  // Called after widget values are restored (workflow load, copy/paste).
+  requestRedraw() {
+    if (this.#mode === PromptPaletteDomUI.MODE.DISPLAY) {
+      this.#buildDisplayRows();
     }
   }
 
@@ -175,7 +167,7 @@ class PromptPaletteDomUI {
 
   #createRowsContainer() {
     const rowsContainer = document.createElement("div");
-    rowsContainer.style.display = "flex";
+    rowsContainer.style.display = "none";
     rowsContainer.style.flexDirection = "column";
     rowsContainer.style.gap = "4px";
     rowsContainer.style.flex = "1 1 auto";
@@ -205,6 +197,7 @@ class PromptPaletteDomUI {
   #createToggleButton() {
     const toggleButton = document.createElement("button");
     toggleButton.type = "button";
+    toggleButton.textContent = "Edit";
     toggleButton.style.width = "100%";
     toggleButton.style.border = "0";
     toggleButton.style.borderRadius = "6px";
@@ -240,7 +233,6 @@ class PromptPaletteDomUI {
     );
     rootWidget.serialize = false;
     rootWidget.options.margin = 0;
-    this.#updateToggleButtonLabel();
     return rootWidget;
   }
 
@@ -249,39 +241,25 @@ class PromptPaletteDomUI {
   // ========================================
   #changeMode(mode) {
     this.#mode = mode;
-    this.#applyMode();
-    if (this.#mode !== PromptPaletteDomUI.MODE.DISPLAY) {
-      this.#app.graph.setDirtyCanvas(true);
-    }
-  }
 
-  #applyMode() {
-    this.#updateWidgetVisibility();
+    if (mode === PromptPaletteDomUI.MODE.EDIT) {
+      // Switch to Edit mode
+      showWidget(this.#textWidget);
+      showWidget(this.#delimiterWidget);
+      this.#rowsContainer.style.display = "none";
+      this.#emptyMessage.style.display = "none";
+      this.#toggleButton.textContent = "Save";
+      this.#app.graph.setDirtyCanvas(true);
+    } else {
+      // Switch to Display mode
+      hideWidget(this.#textWidget);
+      hideWidget(this.#delimiterWidget);
+      this.#buildDisplayRows();
+      this.#toggleButton.textContent = "Edit";
+    }
+
     this.#refreshNodeWidgets();
     this.#callTextWidgetCallback();
-    this.#updateToggleButtonLabel();
-    if (this.#mode === PromptPaletteDomUI.MODE.DISPLAY) {
-      this.#switchToDisplayModeUI();
-    } else {
-      this.#switchToEditModeUI();
-    }
-  }
-
-  #updateToggleButtonLabel() {
-    if (!this.#toggleButton) return;
-    this.#toggleButton.textContent =
-      this.#mode === PromptPaletteDomUI.MODE.EDIT ? "Save" : "Edit";
-  }
-
-  #updateWidgetVisibility() {
-    const visible = this.#mode === PromptPaletteDomUI.MODE.EDIT;
-    if (visible) {
-      if (this.#textWidget) showWidget(this.#textWidget);
-      if (this.#delimiterWidget) showWidget(this.#delimiterWidget);
-    } else {
-      if (this.#textWidget) hideWidget(this.#textWidget);
-      if (this.#delimiterWidget) hideWidget(this.#delimiterWidget);
-    }
   }
 
   #refreshNodeWidgets() {
@@ -323,9 +301,9 @@ class PromptPaletteDomUI {
   }
 
   // ========================================
-  // UI Mode Switching
+  // Display UI Building
   // ========================================
-  #switchToDisplayModeUI() {
+  #buildDisplayRows() {
     const text = this.#textWidget.value || "";
     this.#rowsContainer.replaceChildren();
     if (!text.trim()) {
@@ -345,11 +323,6 @@ class PromptPaletteDomUI {
     this.#app.graph.setDirtyCanvas(true);
   }
 
-  #switchToEditModeUI() {
-    this.#rowsContainer.style.display = "none";
-    this.#emptyMessage.style.display = "none";
-  }
-
   // ========================================
   // Data Operations
   // ========================================
@@ -362,7 +335,7 @@ class PromptPaletteDomUI {
     line.toggleCommentedOut();
     textLines[lineIndex] = line.buildText();
     this.#textWidget.value = textLines.join("\n");
-    this.#switchToDisplayModeUI();
+    this.#buildDisplayRows();
   }
 
   #adjustLineWeight(lineIndex, delta) {
@@ -374,7 +347,7 @@ class PromptPaletteDomUI {
     line.adjustWeight(delta);
     textLines[lineIndex] = line.buildText();
     this.#textWidget.value = textLines.join("\n");
-    this.#switchToDisplayModeUI();
+    this.#buildDisplayRows();
   }
 
   // ========================================

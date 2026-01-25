@@ -6,6 +6,7 @@ import {
   hideWidget,
   hideWidgetAndKeepSpace,
   showWidget,
+  validateDelimiterValue,
 } from "./ui_utils.js";
 
 const CONFIG = {
@@ -22,14 +23,6 @@ const CONFIG = {
   weightButtonGap: 4,
 };
 
-const VALID_DELIMITERS = [
-  "comma + line break",
-  "comma",
-  "line break",
-  "space",
-];
-const DEFAULT_DELIMITER = VALID_DELIMITERS[0];
-
 let colorCache = null;
 
 export function setupCanvasUI(nodeType, app) {
@@ -45,7 +38,7 @@ export function setupCanvasUI(nodeType, app) {
     if (origOnNodeCreated) {
       origOnNodeCreated.apply(this, arguments);
     }
-    // Initialize Canvas UI for new nodes (caller ensures Nodes 1.0 mode).
+    // Initialize Canvas UI for new nodes
     if (this.__nodeInitialized) {
       return;
     }
@@ -61,19 +54,21 @@ export function setupCanvasUI(nodeType, app) {
     }
   };
 
+  const origOnConfigure = nodeType.prototype.onConfigure;
+  nodeType.prototype.onConfigure = function (data) {
+    if (origOnConfigure) {
+      origOnConfigure.call(this, data);
+    }
+    validateDelimiterValue(findDelimiterWidget(this));
+  };
+
   const origOnDrawForeground = nodeType.prototype.onDrawForeground;
   nodeType.prototype.onDrawForeground = function (ctx) {
     if (origOnDrawForeground) {
       origOnDrawForeground.call(this, ctx);
     }
-    // Render the custom list UI in display mode.
     this.__promptPaletteCanvasUI?.draw(ctx);
   };
-}
-
-export function refreshCanvasUI(node) {
-  if (!node || !node.__promptPaletteCanvasUI) return;
-  node.__promptPaletteCanvasUI.refresh();
 }
 
 class PromptPaletteCanvasUI {
@@ -104,21 +99,10 @@ class PromptPaletteCanvasUI {
     this.#clickableAreas = [];
     this.#toggleButton = null;
 
-    this.#hideWidgets();
+    hideWidgetAndKeepSpace(this.#textWidget);
+    hideWidget(this.#delimiterWidget);
     this.#addToggleButton();
     this.#attachClickHandler();
-  }
-
-  #validateDelimiterValue() {
-    if (!this.#delimiterWidget) return;
-    if (!VALID_DELIMITERS.includes(this.#delimiterWidget.value)) {
-      this.#delimiterWidget.value = DEFAULT_DELIMITER;
-    }
-  }
-
-  refresh() {
-    this.#validateDelimiterValue();
-    this.#app.graph.setDirtyCanvas(true);
   }
 
   draw(ctx) {
@@ -133,10 +117,6 @@ class PromptPaletteCanvasUI {
   // ========================================
   #changeMode(mode) {
     this.#mode = mode;
-    this.#applyMode();
-  }
-
-  #applyMode() {
     this.#updateWidgetVisibility();
     this.#updateToggleButtonLabel();
     this.#app.graph.setDirtyCanvas(true);
@@ -161,11 +141,6 @@ class PromptPaletteCanvasUI {
   // ========================================
   // Widget Management
   // ========================================
-  #hideWidgets() {
-    hideWidgetAndKeepSpace(this.#textWidget);
-    hideWidget(this.#delimiterWidget);
-  }
-
   #addToggleButton() {
     this.#toggleButton = this.#node.addWidget(
       "button",

@@ -11,8 +11,8 @@ class PromptPalette:
                     {"default": "", "multiline": True},
                 ),
                 "delimiter": (
-                    ["comma + line break", "comma", "line break", "space"],
-                    {"default": "comma + line break"},
+                    ["comma & line break", "comma", "line break", "space"],
+                    {"default": "comma & line break"},
                 ),
             },
             "optional": {"prefix": ("STRING", {"forceInput": True})},
@@ -36,7 +36,7 @@ class PromptPalette:
             if "//" in line:
                 line = line.split("//")[0].rstrip()
             # Add suffix based on delimiter setting
-            if delimiter in ("comma + line break", "comma"):
+            if delimiter in ("comma & line break", "comma"):
                 line = line + ", "
             elif delimiter == "space":
                 line = line + " "
@@ -44,7 +44,7 @@ class PromptPalette:
             filtered_lines.append(line)
 
         # Join lines based on delimiter setting
-        if delimiter in ("comma + line break", "line break"):
+        if delimiter in ("comma & line break", "line break"):
             result = "\n".join(filtered_lines)
         else:
             # "comma" or "space": remove line breaks
@@ -53,7 +53,7 @@ class PromptPalette:
         # Add prefix if provided
         if prefix:
             if result:
-                if delimiter in ("comma + line break", "line break"):
+                if delimiter in ("comma & line break", "line break"):
                     result = prefix + "\n" + result
                 else:
                     result = prefix + result

@@ -57,11 +57,11 @@ ComfyUIのカスタムノード構成に従う。
 - `delimiter` widget: 行ごとのSuffixおよび改行有無の設定
   - type: COMBO
   - options:
-    - "comma + line break"
+    - "comma & line break"
     - "comma"
     - "line break"
     - "space"
-  - default: "comma + line break"
+  - default: "comma & line break"
 
 ### ノードの出力
 

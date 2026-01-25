@@ -18,6 +18,22 @@ export function findDelimiterWidget(node) {
   return null;
 }
 
+export const VALID_DELIMITERS = [
+  "comma & line break",
+  "comma",
+  "line break",
+  "space",
+];
+
+export const DEFAULT_DELIMITER = VALID_DELIMITERS[0];
+
+export function validateDelimiterValue(delimiterWidget) {
+  if (!delimiterWidget) return;
+  if (!VALID_DELIMITERS.includes(delimiterWidget.value)) {
+    delimiterWidget.value = DEFAULT_DELIMITER;
+  }
+}
+
 export function showWidget(widget) {
   applyWidgetVisibility(widget, true, false);
 }
