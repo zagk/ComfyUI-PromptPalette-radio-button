@@ -8,6 +8,7 @@ import {
   validateLineBreakValue,
 } from "./ui_utils.js";
 import { Line } from "./line.js";
+import { TextLines } from "./text_lines.js";
 
 const CONFIG = {
   lineHeight: 24,
@@ -336,25 +337,17 @@ class PromptPaletteDomUI {
   // ========================================
   #toggleLineComment(lineIndex) {
     if (this.#mode === PromptPaletteDomUI.MODE.EDIT) return;
-    const textLines = this.#textWidget.value.split("\n");
-    if (lineIndex < 0 || lineIndex >= textLines.length) return;
-
-    const line = new Line(textLines[lineIndex]);
-    line.toggleCommentedOut();
-    textLines[lineIndex] = line.buildText();
-    this.#textWidget.value = textLines.join("\n");
+    const textLines = new TextLines(this.#textWidget.value);
+    textLines.toggleCommentAt(lineIndex);
+    this.#textWidget.value = textLines.toString();
     this.#buildDisplayRows();
   }
 
   #adjustLineWeight(lineIndex, delta) {
     if (this.#mode === PromptPaletteDomUI.MODE.EDIT) return;
-    const textLines = this.#textWidget.value.split("\n");
-    if (lineIndex < 0 || lineIndex >= textLines.length) return;
-
-    const line = new Line(textLines[lineIndex]);
-    line.adjustWeight(delta);
-    textLines[lineIndex] = line.buildText();
-    this.#textWidget.value = textLines.join("\n");
+    const textLines = new TextLines(this.#textWidget.value);
+    textLines.adjustWeightAt(lineIndex, delta);
+    this.#textWidget.value = textLines.toString();
     this.#buildDisplayRows();
   }
 

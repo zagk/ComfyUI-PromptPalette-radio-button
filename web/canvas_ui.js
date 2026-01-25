@@ -10,6 +10,7 @@ import {
   validateDelimiterValue,
   validateLineBreakValue,
 } from "./ui_utils.js";
+import { TextLines } from "./text_lines.js";
 
 const CONFIG = {
   minNodeHeight: 80,
@@ -223,24 +224,16 @@ class PromptPaletteCanvasUI {
   // Data Operations
   // ========================================
   #toggleLineComment(lineIndex) {
-    const textLines = this.#textWidget.value.split("\n");
-    if (lineIndex < 0 || lineIndex >= textLines.length) return;
-
-    const line = new Line(textLines[lineIndex]);
-    line.toggleCommentedOut();
-    textLines[lineIndex] = line.buildText();
-    this.#textWidget.value = textLines.join("\n");
+    const textLines = new TextLines(this.#textWidget.value);
+    textLines.toggleCommentAt(lineIndex);
+    this.#textWidget.value = textLines.toString();
     this.#app.graph.setDirtyCanvas(true);
   }
 
   #adjustLineWeight(lineIndex, delta) {
-    const textLines = this.#textWidget.value.split("\n");
-    if (lineIndex < 0 || lineIndex >= textLines.length) return;
-
-    const line = new Line(textLines[lineIndex]);
-    line.adjustWeight(delta);
-    textLines[lineIndex] = line.buildText();
-    this.#textWidget.value = textLines.join("\n");
+    const textLines = new TextLines(this.#textWidget.value);
+    textLines.adjustWeightAt(lineIndex, delta);
+    this.#textWidget.value = textLines.toString();
     this.#app.graph.setDirtyCanvas(true);
   }
 
