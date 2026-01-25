@@ -54,14 +54,16 @@ ComfyUIのカスタムノード構成に従う。
 - `text` widget: メインテキストエリア
   - type: Multiline STRING 
   - default: ""
-- `delimiter` widget: 行ごとのSuffixおよび改行有無の設定
+- `delimiter` widget: 区切り文字の設定
   - type: COMBO
   - options:
-    - "comma & line break"
     - "comma"
-    - "line break"
     - "space"
-  - default: "comma & line break"
+    - "none"
+  - default: "comma"
+- `line_break` widget: 改行有無の設定
+  - type: BOOLEAN
+  - default: true
 
 ### ノードの出力
 
@@ -72,16 +74,16 @@ ComfyUIのカスタムノード構成に従う。
   - `//` で始まるコメント行を削除
   - 行内の `//` 以降の文字列は後続コメントとして削除
 - `delimiter` の設定に応じて行の末尾に文字列を追加
-  - "comma + line break" および "comma": `, ` を追加
-  - "line break": 何も追加しない
-  - "space": ` ` を追加
-- `delimiter` の設定に応じて出力文字列の改行を変更
-  - "comma + line break" および "line break": 改行をキープ
-  - "comma" および "space": 改行を削除
+  - "comma": ", " を追加
+  - "space": " " を追加
+  - "none": 何も追加しない
+- `line_break` の設定に応じて出力文字列の改行を変更
+  - true: 改行をキープ
+  - false: 改行を削除
 - `prefix` slot の入力がある場合、prefixを出力文字列の先頭に追加
-  - `delimiter` の設定に応じて結合時の改行有無を変更
-    - "comma + line break" および "line break" の場合、改行ありで結合
-    - "comma" および "space" の場合、改行なしで結合
+  - `line_break` の設定に応じて結合時の改行有無を変更
+    - true: 改行ありで結合
+    - false: 改行なしで結合
   - 出力文字列が空の場合は結合せずprefixを出力文字列とする
 
 ### 編集モードと表示モード
@@ -95,15 +97,21 @@ ComfyUIのカスタムノード構成に従う。
 - 以下の要素を上から順に並べる
   - `text` widget
   - `delimiter` widget
+  - `line_break` widget
   - `Save` ボタン
-- `delimiter` と `Save` ボタンをノード下端に寄せ、残りの上部領域に `text` widgetを表示
+- レイアウト
+  - `delimiter`, `line_break`, `Save` をノード下端に寄せる
+  - 残りの上部領域に `text` widgetを表示
 
 ### 表示モード時のUI
 
 - Nodes 1.0の場合、Canvasで UI を描画
   - クリック処理は座標ベースの `clickableAreas` により判定
 - Nodes 2.0の場合、DOMでUIを描画
-- 表示モードでは `text` widget (メインテキストエリア) と `delimiter` widget は非表示
+- 表示モードでは以下のウィジェットは非表示
+  - `text` widget (メインテキストエリア) 
+  - `delimiter` widget
+  - `line_break` widget
 - メインテキストエリアにテキストが書かれている場合:
   - メインテキストエリアの各行のテキストを元に、後述する「表示モード行」を表示
   - ノード下部に `Edit` ボタンを下寄せして表示

@@ -1,9 +1,11 @@
 import {
   findDelimiterWidget,
+  findLineBreakWidget,
   findTextWidget,
   hideWidget,
   showWidget,
   validateDelimiterValue,
+  validateLineBreakValue,
 } from "./ui_utils.js";
 import { Line } from "./line.js";
 
@@ -78,6 +80,7 @@ export function setupDomUI(nodeType, app) {
       origOnConfigure.call(this, data);
     }
     validateDelimiterValue(findDelimiterWidget(this));
+    validateLineBreakValue(findLineBreakWidget(this));
     this.__promptPaletteDomUI?.requestRedraw();
   };
 }
@@ -96,6 +99,7 @@ class PromptPaletteDomUI {
   #node;
   #textWidget;
   #delimiterWidget;
+  #lineBreakWidget;
   #app;
   #mode;
   #rootContainer;
@@ -108,6 +112,7 @@ class PromptPaletteDomUI {
     this.#node = node;
     this.#textWidget = textWidget;
     this.#delimiterWidget = findDelimiterWidget(node);
+    this.#lineBreakWidget = findLineBreakWidget(node);
     this.#app = app;
     this.#mode = PromptPaletteDomUI.MODE.DISPLAY;
 
@@ -140,6 +145,7 @@ class PromptPaletteDomUI {
     this.#updateRootWidgetVisibility();
     hideWidget(this.#textWidget);
     hideWidget(this.#delimiterWidget);
+    hideWidget(this.#lineBreakWidget);
   }
 
   // Called after widget values are restored (workflow load, copy/paste).
@@ -246,6 +252,7 @@ class PromptPaletteDomUI {
       // Switch to Edit mode
       showWidget(this.#textWidget);
       showWidget(this.#delimiterWidget);
+      showWidget(this.#lineBreakWidget);
       this.#rowsContainer.style.display = "none";
       this.#emptyMessage.style.display = "none";
       this.#toggleButton.textContent = "Save";
@@ -254,6 +261,7 @@ class PromptPaletteDomUI {
       // Switch to Display mode
       hideWidget(this.#textWidget);
       hideWidget(this.#delimiterWidget);
+      hideWidget(this.#lineBreakWidget);
       this.#buildDisplayRows();
       this.#toggleButton.textContent = "Edit";
     }

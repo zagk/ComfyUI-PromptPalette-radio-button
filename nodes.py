@@ -11,8 +11,12 @@ class PromptPalette:
                     {"default": "", "multiline": True},
                 ),
                 "delimiter": (
-                    ["comma & line break", "comma", "line break", "space"],
-                    {"default": "comma & line break"},
+                    ["comma", "space", "none"],
+                    {"default": "comma"},
+                ),
+                "line_break": (
+                    "BOOLEAN",
+                    {"default": True},
                 ),
             },
             "optional": {"prefix": ("STRING", {"forceInput": True})},
@@ -22,7 +26,7 @@ class PromptPalette:
     FUNCTION = "process"
     CATEGORY = "utils"
 
-    def process(self, text, delimiter, prefix=None):
+    def process(self, text, delimiter, line_break, prefix=None):
         lines = text.split("\n")
         filtered_lines = []
         for line in lines:
@@ -36,24 +40,23 @@ class PromptPalette:
             if "//" in line:
                 line = line.split("//")[0].rstrip()
             # Add suffix based on delimiter setting
-            if delimiter in ("comma & line break", "comma"):
+            if delimiter == "comma":
                 line = line + ", "
             elif delimiter == "space":
                 line = line + " "
-            # "line break" adds nothing
+            # "none" adds nothing
             filtered_lines.append(line)
 
-        # Join lines based on delimiter setting
-        if delimiter in ("comma & line break", "line break"):
+        # Join lines based on line_break setting
+        if line_break:
             result = "\n".join(filtered_lines)
         else:
-            # "comma" or "space": remove line breaks
             result = "".join(filtered_lines)
 
         # Add prefix if provided
         if prefix:
             if result:
-                if delimiter in ("comma & line break", "line break"):
+                if line_break:
                     result = prefix + "\n" + result
                 else:
                     result = prefix + result

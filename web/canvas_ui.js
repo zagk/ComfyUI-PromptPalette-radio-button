@@ -2,11 +2,13 @@ import { Line } from "./line.js";
 import {
   calculateNodeHeight,
   findDelimiterWidget,
+  findLineBreakWidget,
   findTextWidget,
   hideWidget,
   hideWidgetAndKeepSpace,
   showWidget,
   validateDelimiterValue,
+  validateLineBreakValue,
 } from "./ui_utils.js";
 
 const CONFIG = {
@@ -60,6 +62,7 @@ export function setupCanvasUI(nodeType, app) {
       origOnConfigure.call(this, data);
     }
     validateDelimiterValue(findDelimiterWidget(this));
+    validateLineBreakValue(findLineBreakWidget(this));
   };
 
   const origOnDrawForeground = nodeType.prototype.onDrawForeground;
@@ -85,6 +88,7 @@ class PromptPaletteCanvasUI {
   #node;
   #textWidget;
   #delimiterWidget;
+  #lineBreakWidget;
   #app;
   #mode;
   #clickableAreas;
@@ -94,6 +98,7 @@ class PromptPaletteCanvasUI {
     this.#node = node;
     this.#textWidget = textWidget;
     this.#delimiterWidget = findDelimiterWidget(node);
+    this.#lineBreakWidget = findLineBreakWidget(node);
     this.#app = app;
     this.#mode = PromptPaletteCanvasUI.MODE.DISPLAY;
     this.#clickableAreas = [];
@@ -101,6 +106,7 @@ class PromptPaletteCanvasUI {
 
     hideWidgetAndKeepSpace(this.#textWidget);
     hideWidget(this.#delimiterWidget);
+    hideWidget(this.#lineBreakWidget);
     this.#addToggleButton();
     this.#attachClickHandler();
   }
@@ -126,9 +132,11 @@ class PromptPaletteCanvasUI {
     if (this.#mode === PromptPaletteCanvasUI.MODE.EDIT) {
       if (this.#textWidget) showWidget(this.#textWidget);
       if (this.#delimiterWidget) showWidget(this.#delimiterWidget);
+      if (this.#lineBreakWidget) showWidget(this.#lineBreakWidget);
     } else {
       if (this.#textWidget) hideWidgetAndKeepSpace(this.#textWidget);
       if (this.#delimiterWidget) hideWidget(this.#delimiterWidget);
+      if (this.#lineBreakWidget) hideWidget(this.#lineBreakWidget);
     }
   }
 
