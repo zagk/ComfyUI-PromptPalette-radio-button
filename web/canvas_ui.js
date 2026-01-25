@@ -77,7 +77,7 @@ class PromptPaletteCanvasUI {
     DISPLAY: "display",
   });
   static ACTION = Object.freeze({
-    TOGGLE: "toggle",
+    TOGGLE_COMMENT: "toggle_comment",
     WEIGHT_PLUS: "weight_plus",
     WEIGHT_MINUS: "weight_minus",
   });
@@ -199,8 +199,8 @@ class PromptPaletteCanvasUI {
 
   #handleClickableAreaAction(area) {
     switch (area.action) {
-      case PromptPaletteCanvasUI.ACTION.TOGGLE:
-        this.#toggleLine(area.lineIndex);
+      case PromptPaletteCanvasUI.ACTION.TOGGLE_COMMENT:
+        this.#toggleLineComment(area.lineIndex);
         break;
       case PromptPaletteCanvasUI.ACTION.WEIGHT_PLUS:
         this.#adjustLineWeight(area.lineIndex, 0.1);
@@ -214,7 +214,7 @@ class PromptPaletteCanvasUI {
   // ========================================
   // Data Operations
   // ========================================
-  #toggleLine(lineIndex) {
+  #toggleLineComment(lineIndex) {
     const textLines = this.#textWidget.value.split("\n");
     if (lineIndex < 0 || lineIndex >= textLines.length) return;
 
@@ -293,9 +293,8 @@ class PromptPaletteCanvasUI {
       y: checkboxY,
       w: checkboxW,
       h: checkboxH,
-      type: "checkbox",
       lineIndex: index,
-      action: PromptPaletteCanvasUI.ACTION.TOGGLE,
+      action: PromptPaletteCanvasUI.ACTION.TOGGLE_COMMENT,
     });
 
     if (line.commentedOut) {
@@ -421,7 +420,6 @@ class PromptPaletteCanvasUI {
       y: y,
       w: buttonSize,
       h: buttonSize,
-      type: "weight_button",
       lineIndex: lineIndex,
       action: action,
     });

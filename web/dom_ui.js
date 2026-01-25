@@ -88,7 +88,7 @@ class PromptPaletteDomUI {
     DISPLAY: "display",
   });
   static EVENT = Object.freeze({
-    TOGGLE: "toggle",
+    TOGGLE_COMMENT: "toggle_comment",
     WEIGHT_PLUS: "weight_plus",
     WEIGHT_MINUS: "weight_minus",
   });
@@ -125,7 +125,7 @@ class PromptPaletteDomUI {
     );
     this.#rootWidget = this.#registerRootWidget();
     this.#rowsContainer.addEventListener(
-      PromptPaletteDomUI.EVENT.TOGGLE,
+      PromptPaletteDomUI.EVENT.TOGGLE_COMMENT,
       (event) => this.#handleRowToggleEvent(event),
     );
     this.#rowsContainer.addEventListener(
@@ -326,7 +326,7 @@ class PromptPaletteDomUI {
   // ========================================
   // Data Operations
   // ========================================
-  #toggleLine(lineIndex) {
+  #toggleLineComment(lineIndex) {
     if (this.#mode === PromptPaletteDomUI.MODE.EDIT) return;
     const textLines = this.#textWidget.value.split("\n");
     if (lineIndex < 0 || lineIndex >= textLines.length) return;
@@ -355,7 +355,7 @@ class PromptPaletteDomUI {
   // ========================================
   #handleRowToggleEvent(event) {
     const lineIndex = event?.detail?.index;
-    this.#toggleLine(lineIndex);
+    this.#toggleLineComment(lineIndex);
   }
 
   #handleRowWeightPlusEvent(event) {
@@ -518,7 +518,7 @@ class PromptPaletteRow {
   // Event Handling
   // ========================================
   #onToggleClick() {
-    this.#dispatchEvent(PromptPaletteDomUI.EVENT.TOGGLE);
+    this.#dispatchEvent(PromptPaletteDomUI.EVENT.TOGGLE_COMMENT);
   }
 
   #onWeightPlusClick() {
