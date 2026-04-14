@@ -1,6 +1,6 @@
 # ComfyUI PromptPalette
 
-## checkbox conert to Radio Button
+## checkbox covert to Radio Button
 
 A custom node for ComfyUI that makes prompt editing easier by allowing phrase switching with just mouse operations
 
