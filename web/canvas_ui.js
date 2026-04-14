@@ -18,7 +18,7 @@ const CONFIG = {
   sideNodePadding: 14,
   lineHeight: 24,
   fontSize: 13,
-  checkboxSize: 16, // 
+  checkboxSize: 16, // 라디오 버튼 크기로 공용 사용
   checkboxMarginRight: 6,
   weightLabelWidth: 34,
   weightLabelMarginRight: 2,
@@ -61,7 +61,7 @@ export function setupCanvasUI(nodeType, app) {
 class PromptPaletteCanvasUI {
   static MODE = Object.freeze({ EDIT: "edit", DISPLAY: "display" });
   static ACTION = Object.freeze({
-    RADIO_SELECT: "radio_select", // �׼Ǹ� ����
+    RADIO_SELECT: "radio_select", // 액션명 변경
     WEIGHT_PLUS: "weight_plus",
     WEIGHT_MINUS: "weight_minus",
   });
@@ -154,7 +154,7 @@ class PromptPaletteCanvasUI {
 
   #selectSingleLine(lineIndex) {
     const textLines = new TextLines(this.#textWidget.value);
-    textLines.selectLineAt(lineIndex); // 
+    textLines.selectLineAt(lineIndex); // 전용 메서드 호출
     this.#textWidget.value = textLines.toString();
     this.#app.graph.setDirtyCanvas(true);
   }
@@ -207,14 +207,14 @@ class PromptPaletteCanvasUI {
     const centerY = y + size / 2;
     const radius = size / 2;
 
-    // 
+    // 외곽 원
     ctx.strokeStyle = getColors().checkboxBorderColor;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
     ctx.stroke();
 
-    //
+    // 선택 시 내부 원 채움
     if (!line.commentedOut) {
       ctx.fillStyle = getColors().checkboxFillColor;
       ctx.beginPath();
@@ -243,12 +243,12 @@ class PromptPaletteCanvasUI {
     if (!line.hasPhraseText()) return;
     let currentX = this.#node.size[0] - CONFIG.sideNodePadding;
     
-    // 
+    // + 버튼
     const pX = currentX - CONFIG.weightButtonSize;
     this.#drawWeightButton(ctx, pX, y, "+", index, PromptPaletteCanvasUI.ACTION.WEIGHT_PLUS);
     currentX = pX - CONFIG.weightButtonGap;
 
-    //
+    // - 버튼
     const mX = currentX - CONFIG.weightButtonSize;
     this.#drawWeightButton(ctx, mX, y, "-", index, PromptPaletteCanvasUI.ACTION.WEIGHT_MINUS);
     currentX = mX - CONFIG.weightButtonGap;
