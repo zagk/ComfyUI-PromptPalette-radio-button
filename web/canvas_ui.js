@@ -18,7 +18,7 @@ const CONFIG = {
   sideNodePadding: 14,
   lineHeight: 24,
   fontSize: 13,
-  checkboxSize: 16, // ���� ��ư ũ��� ���� ���
+  checkboxSize: 16, // 
   checkboxMarginRight: 6,
   weightLabelWidth: 34,
   weightLabelMarginRight: 2,
@@ -154,7 +154,7 @@ class PromptPaletteCanvasUI {
 
   #selectSingleLine(lineIndex) {
     const textLines = new TextLines(this.#textWidget.value);
-    textLines.selectLineAt(lineIndex); // ���� �޼��� ȣ��
+    textLines.selectLineAt(lineIndex); // 
     this.#textWidget.value = textLines.toString();
     this.#app.graph.setDirtyCanvas(true);
   }
@@ -207,14 +207,14 @@ class PromptPaletteCanvasUI {
     const centerY = y + size / 2;
     const radius = size / 2;
 
-    // �ܰ� ��
+    // 
     ctx.strokeStyle = getColors().checkboxBorderColor;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
     ctx.stroke();
 
-    // ���� �� ���� �� ä��
+    //
     if (!line.commentedOut) {
       ctx.fillStyle = getColors().checkboxFillColor;
       ctx.beginPath();
@@ -243,12 +243,12 @@ class PromptPaletteCanvasUI {
     if (!line.hasPhraseText()) return;
     let currentX = this.#node.size[0] - CONFIG.sideNodePadding;
     
-    // + ��ư
+    // 
     const pX = currentX - CONFIG.weightButtonSize;
     this.#drawWeightButton(ctx, pX, y, "+", index, PromptPaletteCanvasUI.ACTION.WEIGHT_PLUS);
     currentX = pX - CONFIG.weightButtonGap;
 
-    // - ��ư
+    //
     const mX = currentX - CONFIG.weightButtonSize;
     this.#drawWeightButton(ctx, mX, y, "-", index, PromptPaletteCanvasUI.ACTION.WEIGHT_MINUS);
     currentX = mX - CONFIG.weightButtonGap;
