@@ -7,11 +7,25 @@ export class TextLines {
     this.#lines = text.split("\n");
   }
 
-  toggleCommentAt(index) {
-    const line = this.#getLineAt(index);
-    if (!line) return;
-    line.toggleCommentedOut();
-    this.#lines[index] = line.buildText();
+  // 
+  selectLineAt(index) {
+    this.#lines = this.#lines.map((lineText, i) => {
+      const line = new Line(lineText);
+      if (!line.hasPhraseText()) return lineText; // 
+
+      if (i === index) {
+        //
+        if (line.commentedOut) {
+          line.toggleCommentedOut();
+        }
+      } else {
+        // 
+        if (!line.commentedOut) {
+          line.toggleCommentedOut();
+        }
+      }
+      return line.buildText();
+    });
   }
 
   adjustWeightAt(index, delta) {
